@@ -1,0 +1,16 @@
+[
+  {"op":"set_name","name":"arm"},
+  {"op":"add_bone","name":"root"},
+  {"op":"add_bone","name":"upper","parent":"root","length":60},
+  {"op":"add_bone","name":"lower","parent":"upper","x":60,"length":60},
+  {"op":"add_bone","name":"goal","parent":"root","x":70,"y":50},
+  {"op":"add_slot","name":"skin","bone":"upper","color":"#e07a5f","attachment":"arm",
+   "attachments":[{"type":"region","name":"arm","x":60,"width":124,"height":26}]},
+  {"op":"mesh_from_region","slot":"skin","region":"arm","cols":8,"rows":2},
+  {"op":"auto_weights","slot":"skin","attachment":"arm","bones":["upper","lower"]},
+  {"op":"add_ik","name":"reach","bones":["upper","lower"],"target":"goal"},
+  {"op":"key_bone","animation":"wave","bone":"goal","time":0,"translate":[0,0],"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"goal","time":0.5,"translate":[-20,-90],"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"goal","time":1,"translate":[0,0]},
+  {"op":"key_ik","animation":"wave","ik":"reach","time":0,"mix":1}
+]

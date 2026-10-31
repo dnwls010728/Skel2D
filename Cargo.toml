@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/skel2d-core", "crates/skel2d-render", "crates/skel2d-rig", "crates/skel2d-cli", "crates/skel2d-editor"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+skel2d-core = { path = "crates/skel2d-core" }
+skel2d-render = { path = "crates/skel2d-render" }
+skel2d-rig = { path = "crates/skel2d-rig" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+schemars = "1"
+thiserror = "2"
+tiny-skia = "0.11"
+clap = { version = "4", features = ["derive"] }
+tiny_http = "0.12"
+anyhow = "1"
+psd = "0.3"
+spade = "2"
+
+# Daily builds, tests and clippy: optimized, but rebuilt incrementally.
+[profile.release]
+incremental = true
+strip = true
+
+# What gets shipped: cargo build --profile dist
+[profile.dist]
+inherits = "release"
+incremental = false
+lto = "thin"
+codegen-units = 1

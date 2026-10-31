@@ -1,0 +1,802 @@
+[
+{
+"op": "add_bone_world",
+"name": "hip",
+"start": [
+0,
+135
+]
+},
+{
+"op": "add_bone_world",
+"name": "torso",
+"parent": "hip",
+"start": [
+0,
+135
+],
+"end": [
+0,
+225
+]
+},
+{
+"op": "add_bone_world",
+"name": "head",
+"parent": "torso",
+"start": [
+0,
+225
+],
+"end": [
+0,
+320
+]
+},
+{
+"op": "add_bone_world",
+"name": "leg_l",
+"parent": "hip",
+"start": [
+-24,
+135
+],
+"end": [
+-24,
+5
+]
+},
+{
+"op": "add_bone_world",
+"name": "leg_r",
+"parent": "hip",
+"start": [
+24,
+135
+],
+"end": [
+24,
+5
+]
+},
+{
+"op": "add_bone_world",
+"name": "arm_l",
+"parent": "torso",
+"start": [
+-58,
+215
+],
+"end": [
+-58,
+92
+]
+},
+{
+"op": "add_bone_world",
+"name": "arm_r",
+"parent": "torso",
+"start": [
+58,
+215
+],
+"end": [
+58,
+92
+]
+},
+{
+"op": "add_bone_world",
+"name": "item",
+"parent": "arm_r",
+"start": [
+58,
+95
+],
+"end": [
+58,
+125
+]
+},
+{
+"op": "add_slot",
+"name": "hat_back",
+"bone": "head",
+"attachment": "hat_back"
+},
+{
+"op": "add_slot",
+"name": "leg_l",
+"bone": "leg_l",
+"attachment": "leg_l"
+},
+{
+"op": "add_slot",
+"name": "leg_r",
+"bone": "leg_r",
+"attachment": "leg_r"
+},
+{
+"op": "add_slot",
+"name": "torso",
+"bone": "torso",
+"attachment": "torso"
+},
+{
+"op": "add_slot",
+"name": "head",
+"bone": "head",
+"attachment": "head",
+"attachments": [
+{
+"type": "region",
+"name": "head",
+"image": "images/head.png",
+"x": 45,
+"rotation": -90,
+"width": 104.0,
+"height": 96.5
+}
+]
+},
+{
+"op": "add_slot",
+"name": "hat",
+"bone": "head",
+"attachment": "hat"
+},
+{
+"op": "add_slot",
+"name": "arm_l",
+"bone": "arm_l",
+"attachment": "arm_l"
+},
+{
+"op": "add_slot",
+"name": "arm_r",
+"bone": "arm_r",
+"attachment": "arm_r"
+},
+{
+"op": "add_slot",
+"name": "item",
+"bone": "item",
+"attachment": "item"
+},
+{
+"op": "add_skin",
+"name": "knight"
+},
+{
+"op": "set_skin_attachment",
+"skin": "knight",
+"slot": "torso",
+"attachment": {
+"type": "region",
+"name": "torso",
+"image": "images/knight_torso.png",
+"x": 40,
+"y": 0.0,
+"rotation": -90,
+"width": 105.0,
+"height": 107.5
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "knight",
+"slot": "leg_l",
+"attachment": {
+"type": "region",
+"name": "leg_l",
+"image": "images/knight_leg.png",
+"x": 65,
+"y": 0.0,
+"rotation": 90,
+"width": 42.5,
+"height": 131.5,
+"scale_x": -1
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "knight",
+"slot": "leg_r",
+"attachment": {
+"type": "region",
+"name": "leg_r",
+"image": "images/knight_leg.png",
+"x": 65,
+"y": 0.0,
+"rotation": 90,
+"width": 42.5,
+"height": 131.5
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "knight",
+"slot": "arm_l",
+"attachment": {
+"type": "region",
+"name": "arm_l",
+"image": "images/knight_arm.png",
+"x": 60,
+"y": 0.0,
+"rotation": 90,
+"width": 42.5,
+"height": 124.0,
+"scale_x": -1
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "knight",
+"slot": "arm_r",
+"attachment": {
+"type": "region",
+"name": "arm_r",
+"image": "images/knight_arm.png",
+"x": 60,
+"y": 0.0,
+"rotation": 90,
+"width": 42.5,
+"height": 124.0
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "knight",
+"slot": "item",
+"attachment": {
+"type": "region",
+"name": "item",
+"image": "images/knight_item.png",
+"x": 39,
+"y": -22,
+"rotation": -120,
+"width": 50.0,
+"height": 131.5
+}
+},
+{
+"op": "add_skin",
+"name": "mage"
+},
+{
+"op": "set_skin_attachment",
+"skin": "mage",
+"slot": "torso",
+"attachment": {
+"type": "region",
+"name": "torso",
+"image": "images/mage_torso.png",
+"x": 40,
+"y": 0.0,
+"rotation": -90,
+"width": 102.0,
+"height": 121.5
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "mage",
+"slot": "leg_l",
+"attachment": {
+"type": "region",
+"name": "leg_l",
+"image": "images/mage_leg.png",
+"x": 65,
+"y": 0.0,
+"rotation": 90,
+"width": 72.0,
+"height": 134.0,
+"scale_x": -1
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "mage",
+"slot": "leg_r",
+"attachment": {
+"type": "region",
+"name": "leg_r",
+"image": "images/mage_leg.png",
+"x": 65,
+"y": 0.0,
+"rotation": 90,
+"width": 72.0,
+"height": 134.0
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "mage",
+"slot": "arm_l",
+"attachment": {
+"type": "region",
+"name": "arm_l",
+"image": "images/mage_arm.png",
+"x": 60,
+"y": 0.0,
+"rotation": 90,
+"width": 50.5,
+"height": 126.0,
+"scale_x": -1
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "mage",
+"slot": "arm_r",
+"attachment": {
+"type": "region",
+"name": "arm_r",
+"image": "images/mage_arm.png",
+"x": 60,
+"y": 0.0,
+"rotation": 90,
+"width": 50.5,
+"height": 126.0
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "mage",
+"slot": "item",
+"attachment": {
+"type": "region",
+"name": "item",
+"image": "images/mage_item.png",
+"x": 39,
+"y": -22,
+"rotation": -120,
+"width": 44.5,
+"height": 138.5
+}
+},
+{
+"op": "add_skin",
+"name": "ranger"
+},
+{
+"op": "set_skin_attachment",
+"skin": "ranger",
+"slot": "torso",
+"attachment": {
+"type": "region",
+"name": "torso",
+"image": "images/ranger_torso.png",
+"x": 40,
+"y": 0.0,
+"rotation": -90,
+"width": 98.0,
+"height": 120.0
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "ranger",
+"slot": "leg_l",
+"attachment": {
+"type": "region",
+"name": "leg_l",
+"image": "images/ranger_leg.png",
+"x": 65,
+"y": 0.0,
+"rotation": 90,
+"width": 46.5,
+"height": 129.0,
+"scale_x": -1
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "ranger",
+"slot": "leg_r",
+"attachment": {
+"type": "region",
+"name": "leg_r",
+"image": "images/ranger_leg.png",
+"x": 65,
+"y": 0.0,
+"rotation": 90,
+"width": 46.5,
+"height": 129.0
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "ranger",
+"slot": "arm_l",
+"attachment": {
+"type": "region",
+"name": "arm_l",
+"image": "images/ranger_arm.png",
+"x": 60,
+"y": 0.0,
+"rotation": 90,
+"width": 39.5,
+"height": 123.5,
+"scale_x": -1
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "ranger",
+"slot": "arm_r",
+"attachment": {
+"type": "region",
+"name": "arm_r",
+"image": "images/ranger_arm.png",
+"x": 60,
+"y": 0.0,
+"rotation": 90,
+"width": 39.5,
+"height": 123.5
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "ranger",
+"slot": "item",
+"attachment": {
+"type": "region",
+"name": "item",
+"image": "images/ranger_item.png",
+"x": 39,
+"y": -22,
+"rotation": -120,
+"width": 42.5,
+"height": 137.5
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "knight",
+"slot": "hat",
+"attachment": {
+"type": "region",
+"name": "hat",
+"image": "images/knight_hat.png",
+"x": 48,
+"y": -3,
+"rotation": -90,
+"width": 139.2,
+"height": 144.6
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "mage",
+"slot": "hat",
+"attachment": {
+"type": "region",
+"name": "hat",
+"image": "images/mage_hat.png",
+"x": 105,
+"y": 0.0,
+"rotation": -90,
+"width": 130.5,
+"height": 103.0
+}
+},
+{
+"op": "set_skin_attachment",
+"skin": "ranger",
+"slot": "hat_back",
+"attachment": {
+"type": "region",
+"name": "hat_back",
+"image": "images/ranger_hat.png",
+"x": 42,
+"y": 0.0,
+"rotation": -90,
+"width": 141.98,
+"height": 150.04
+}
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "torso",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "head",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "arm_l",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "arm_r",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "torso",
+"time": 1,
+"curve": "ease_in_out",
+"rotate": 1.5
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "head",
+"time": 1,
+"curve": "ease_in_out",
+"rotate": -3
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "arm_l",
+"time": 1,
+"curve": "ease_in_out",
+"rotate": -4
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "arm_r",
+"time": 1,
+"curve": "ease_in_out",
+"rotate": 4
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "torso",
+"time": 2,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "head",
+"time": 2,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "arm_l",
+"time": 2,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "idle",
+"bone": "arm_r",
+"time": 2,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "leg_l",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": 24
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "leg_r",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": -24
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "arm_l",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": -20
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "arm_r",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": 20
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "leg_l",
+"time": 0.4,
+"curve": "ease_in_out",
+"rotate": -24
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "leg_r",
+"time": 0.4,
+"curve": "ease_in_out",
+"rotate": 24
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "arm_l",
+"time": 0.4,
+"curve": "ease_in_out",
+"rotate": 20
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "arm_r",
+"time": 0.4,
+"curve": "ease_in_out",
+"rotate": -20
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "leg_l",
+"time": 0.8,
+"curve": "ease_in_out",
+"rotate": 24
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "leg_r",
+"time": 0.8,
+"curve": "ease_in_out",
+"rotate": -24
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "arm_l",
+"time": 0.8,
+"curve": "ease_in_out",
+"rotate": -20
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "arm_r",
+"time": 0.8,
+"curve": "ease_in_out",
+"rotate": 20
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "hip",
+"time": 0,
+"curve": "ease_in_out",
+"translate": [
+0,
+0
+]
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "hip",
+"time": 0.2,
+"curve": "ease_in_out",
+"translate": [
+0,
+6
+]
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "hip",
+"time": 0.4,
+"curve": "ease_in_out",
+"translate": [
+0,
+0
+]
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "hip",
+"time": 0.6,
+"curve": "ease_in_out",
+"translate": [
+0,
+6
+]
+},
+{
+"op": "key_bone",
+"animation": "walk",
+"bone": "hip",
+"time": 0.8,
+"curve": "ease_in_out",
+"translate": [
+0,
+0
+]
+},
+{
+"op": "key_bone",
+"animation": "wave",
+"bone": "arm_l",
+"time": 0,
+"curve": "ease_in_out",
+"rotate": 0
+},
+{
+"op": "key_bone",
+"animation": "wave",
+"bone": "arm_l",
+"time": 0.3,
+"curve": "ease_in_out",
+"rotate": -150
+},
+{
+"op": "key_bone",
+"animation": "wave",
+"bone": "arm_l",
+"time": 0.5,
+"curve": "ease_in_out",
+"rotate": -125
+},
+{
+"op": "key_bone",
+"animation": "wave",
+"bone": "arm_l",
+"time": 0.7,
+"curve": "ease_in_out",
+"rotate": -160
+},
+{
+"op": "key_bone",
+"animation": "wave",
+"bone": "arm_l",
+"time": 0.9,
+"curve": "ease_in_out",
+"rotate": -125
+},
+{
+"op": "key_bone",
+"animation": "wave",
+"bone": "arm_l",
+"time": 1.1,
+"curve": "ease_in_out",
+"rotate": -150
+},
+{
+"op": "key_bone",
+"animation": "wave",
+"bone": "arm_l",
+"time": 1.5,
+"curve": "ease_in_out",
+"rotate": 0
+}
+]

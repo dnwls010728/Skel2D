@@ -1,0 +1,124 @@
+Generation mode: native image_gen built-in tool
+
+01_new_project.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 1 · 새 프로젝트"
+Right-side captions verbatim:
+1. 파일 > 새로 만들기
+2. 파일 > 다른 이름으로 저장 (Ctrl+S)
+3. 저장 위치 = 이미지 폴더 근처 (경로가 상대 경로로 저장됨)
+Illustration: File menu open with 새로 만들기 highlighted, empty viewport grid. Three callouts point to new menu entry, save menu entry, folder/path concept.
+Character when present: cute brown-haired chibi boy in a white bear T-shirt, blue shorts and white shoes. CRITICAL: entirely EMPTY bone tree and EMPTY slot list. No bones, no character, no populated items. Right document panel only 이름 untitled. Empty bottom setup timeline.
+
+---
+
+02_add_images.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 2 · 이미지 추가"
+Right-side captions verbatim:
+1. 파일 > 이미지 가져오기
+2. 또는 PNG 파일을 뷰포트로 드래그
+3. 또는 슬롯 헤더의 [+ 이미지]
+4. 이미지마다 슬롯이 생김 (본이 없으면 root 자동 생성)
+Illustration: PNG files labeled head, body, arm, leg showing parts of a cute character are dragged from a small file explorer window into the viewport. Left slot list filling up; root bone created. Highlight import menu, drag gesture, + 이미지 slot header, resulting slots.
+
+---
+
+03_arrange.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 3 · 배치"
+Right-side captions verbatim:
+1. 슬롯 목록에서 파츠 선택
+2. 오른쪽 리전의 X / Y / 회전 / 크기 값을 드래그 (더블클릭: 직접 입력)
+3. 그리기 순서 [앞으로] [뒤로]로 겹침 순서 조정
+Illustration: Cute character parts being assembled in viewport. Selected arm part. Right region properties numeric X / Y / 회전 / 크기 and 그리기 순서 앞으로 뒤로 buttons clearly highlighted. Three callouts.
+Character should be a cute brown-haired chibi boy in a white bear T-shirt, blue shorts and white shoes, consistent through this series.
+
+---
+
+04_bones.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 4 · 본 추가"
+Right-side captions verbatim:
+1. 본 도구 (B)
+2. 빈 곳 클릭 후 드래그: 루트 본
+3. 끝점(링)에서 이어서 드래그: 자식 본 체인
+4. 오른쪽 이름 칸에서 이름 변경 (예: upper_arm_l)
+Illustration: Draw yellow tapered diamond-shaped bone chain hip to chest to head and down arm over assembled cute character. Circle endpoints visible, drawing arrow gesture from endpoint. Left bone tree updates. Highlight 본 B toolbar and right 이름 input upper_arm_l.
+Character should be a cute brown-haired chibi boy in a white bear T-shirt, blue shorts and white shoes, consistent through this series.
+
+---
+
+05_bind.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 5 · 본에 이미지 심기"
+Right-side captions verbatim:
+1. 슬롯 선택
+2. 슬롯의 [본] 드롭다운에서 붙일 본 선택 (화면 위치는 그대로 유지)
+3. 또는 본 속성의 [이 본에 이미지 추가...]
+4. 회전 도구(R)로 본을 돌려 따라오는지 확인
+Illustration: Slot selected in left list; right slot properties 본 dropdown open with upper_arm_l selected. Yellow upper-arm bone rotated, attached arm image follows it, subtle rotation arrow. Show 이 본에 이미지 추가... button in bone properties.
+Character when present: cute brown-haired chibi boy in a white bear T-shirt, blue shorts and white shoes. 
+
+---
+
+06_mesh.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 6 · 자동 메쉬"
+Right-side captions verbatim:
+1. 본을 먼저 추가 (관절 주변에 정점이 모임)
+2. 슬롯 선택 > 메쉬 섹션의 밀도 [적게 / 보통 / 많게]
+3. [자동 메쉬 생성] 클릭
+4. 메쉬 도구(M): 클릭 추가 · 드래그 이동 · Ctrl+클릭 삭제
+Illustration: A large bent arm body part with clean adaptive triangular mesh hugging silhouette, sparse mesh along straight limbs, denser small triangles near elbow joint. Yellow bones inside. Right properties mesh density 적게 / 보통 / 많게, big bright cyan button 자동 메쉬 생성. Highlight mesh tool M.
+Character when present: cute brown-haired chibi boy in a white bear T-shirt, blue shorts and white shoes. 
+
+---
+
+07_weights.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 7 · 가중치"
+Right-side captions verbatim:
+1. 메쉬 슬롯 선택 > [자동 가중치]로 시작
+2. 가중치 도구 (W)
+3. 뷰포트에서 본 클릭 후 드래그로 칠하기 · Ctrl 지우기
+4. [ / ] 브러시 크기 — 파랑 0 → 빨강/노랑 1
+Illustration: Bent elbow mesh, yellow bones, saturated blue-to-red/yellow weight heatmap focused on selected elbow bone, circular brush cursor and a brush stroke. Right panel 자동 가중치 button. 가중치 W selected in toolbar. Small blue 0 to red/yellow 1 color legend only as part of caption 4.
+Character: cute brown-haired chibi boy in a white bear T-shirt, blue shorts and white shoes. Keep all seven toolbar tools visible including 가중치 W. Use clean yellow diamond-shaped bones.
+
+---
+
+08_animation.png
+Use case: infographic-diagram. Generate ONE finished Korean Skel2D tutorial page, landscape EXACTLY 1536x1024 pixels. Native raster generation only. Consistent series design: flat dark navy #101827 background, large white bold Korean sans-serif title at top-left at (55,55), cyan STEP number; main simplified yet faithful desktop editor window occupies x40–1040,y200–920; right-side numbered instructions occupy x1080–1500,y220–920. Use 26px or larger crisp legible Korean instructions, line wrap within right column, generous vertical space. Keep ALL supplied caption words verbatim, no omission, paraphrase or added instructional text. Numbered cyan circles with 1,2,3,4 in editor and identical circles in right vertical caption list. Relevant editor areas outlined with bright cyan #5CC4FF rounded rectangles and subtle cyan leader arrows. Keyboard shortcuts drawn as compact keycaps while preserving text.
+Editor faithfully matches supplied REAL screenshot layout: charcoal #1b1d21 panels, top menu 파일 편집 보기; toolbar 선택 Q / 회전 R / 이동 T / 크기 S / 본 B / 메쉬 M / 가중치 W, green 셋업 포즈 badge, 보기 toggles 스냅 어니언 이름 본. Left narrow panel with hierarchical yellow bone tree under 본 and slot list under 슬롯, central gray Cartesian viewport grid, right properties panel 문서/본/슬롯 with dark numeric inputs, bottom timeline. Korean UI labels only except user-provided bone/part names and keycaps. Tiny irrelevant UI content may be simplified instead of invented. Illustration should remain very readable rather than screen capture at illegibly small scale. No watermark, no logos, no decorative extra slogans. All instructions must fit. This is an illustrated tutorial, not a screenshot with an overlay.
+
+Accuracy: do not invent document width/height/FPS/canvas properties, extra bones or unrelated controls. Match reference flat compact horizontal toolbar with text and keycap together; do not create huge toolbar icons. Only show populated bones and slots when the page's illustration requires them. Use correct original references: empty project has empty 本 and 슬롯 sections, document 이름 untitled and empty bottom setup timeline. Use title middle dot · exactly. Keep captions at least 26px, accurately proofread Korean. For each page, editor labels limited to relevant supplied UI labels.
+Title exactly: "STEP 8 · 애니메이션"
+Right-side captions verbatim:
+1. 타임라인의 [+]로 새 애니메이션 (빨간 애니메이션 모드)
+2. 재생 헤드를 원하는 시간으로 이동
+3. 회전(R)/이동(T)으로 본을 움직이면 키 자동 기록 · K 수동 키
+4. Space 재생 · 보간 선택 · Ctrl+S 저장
+Illustration: Bottom timeline/dope sheet prominent with yellow diamond keyframes and red vertical playhead, red-framed viewport and red 애니메이션 mode badge. Cute character waving with translucent ghosted onion-skin arm frames. Highlight + animation button, playhead, arm rotation gizmo, playback/interpolation controls.
+Character: cute brown-haired chibi boy in a white bear T-shirt, blue shorts and white shoes. Keep all seven toolbar tools visible including 가중치 W. Use clean yellow diamond-shaped bones.

@@ -1,0 +1,15 @@
+[package]
+name = "skel2d-rig"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Image analysis and auto-rigging for Skel2D: alpha meshes, skeleton templates, coordinate grids"
+
+[dependencies]
+skel2d-core.workspace = true
+tiny-skia.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+psd.workspace = true
+spade.workspace = true

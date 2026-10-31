@@ -1,0 +1,6 @@
+/target
+*.png
+!examples/rig/character.png
+*.tmp~
+/output
+/dist

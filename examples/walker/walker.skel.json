@@ -1,0 +1,126 @@
+{
+  "format": "skel2d/1",
+  "name": "walker",
+  "bones": [
+    {"name":"root"},
+    {"name":"hip","parent":"root","y":100.0},
+    {"name":"torso","parent":"hip","rotation":90.0,"length":60.0},
+    {"name":"head","parent":"torso","x":62.0,"length":30.0},
+    {"name":"thigh_l","parent":"hip","rotation":-90.0,"length":50.0},
+    {"name":"shin_l","parent":"thigh_l","x":50.0,"length":48.0},
+    {"name":"thigh_r","parent":"hip","rotation":-90.0,"length":50.0},
+    {"name":"shin_r","parent":"thigh_r","x":50.0,"length":48.0},
+    {"name":"arm_l","parent":"torso","x":55.0,"rotation":180.0,"length":38.0},
+    {"name":"forearm_l","parent":"arm_l","x":38.0,"length":34.0},
+    {"name":"arm_r","parent":"torso","x":55.0,"rotation":180.0,"length":38.0},
+    {"name":"forearm_r","parent":"arm_r","x":38.0,"length":34.0}
+  ],
+  "slots": [
+    {
+      "name": "arm_r",
+      "bone": "arm_r",
+      "color": "#5a6fa8",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":19.0,"width":40.0,"height":12.0}]
+    },
+    {
+      "name": "forearm_r",
+      "bone": "forearm_r",
+      "color": "#5a6fa8",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":17.0,"width":36.0,"height":10.0}]
+    },
+    {
+      "name": "thigh_r",
+      "bone": "thigh_r",
+      "color": "#3d4f7a",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":25.0,"width":52.0,"height":16.0}]
+    },
+    {
+      "name": "shin_r",
+      "bone": "shin_r",
+      "color": "#3d4f7a",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":24.0,"width":50.0,"height":13.0}]
+    },
+    {
+      "name": "torso",
+      "bone": "torso",
+      "color": "#e07a5f",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":30.0,"width":66.0,"height":34.0}]
+    },
+    {
+      "name": "head",
+      "bone": "head",
+      "color": "#f2cc8f",
+      "attachment": "open",
+      "attachments": [
+        {"type":"region","name":"open","x":15.0,"width":30.0,"height":28.0},
+        {"type":"region","name":"blink","x":15.0,"width":30.0,"height":24.0}
+      ]
+    },
+    {
+      "name": "thigh_l",
+      "bone": "thigh_l",
+      "color": "#4a6fa5",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":25.0,"width":52.0,"height":16.0}]
+    },
+    {
+      "name": "shin_l",
+      "bone": "shin_l",
+      "color": "#4a6fa5",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":24.0,"width":50.0,"height":13.0}]
+    },
+    {
+      "name": "arm_l",
+      "bone": "arm_l",
+      "color": "#81b29a",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":19.0,"width":40.0,"height":12.0}]
+    },
+    {
+      "name": "forearm_l",
+      "bone": "forearm_l",
+      "color": "#81b29a",
+      "attachment": "r",
+      "attachments": [{"type":"region","name":"r","x":17.0,"width":36.0,"height":10.0}]
+    }
+  ],
+  "animations": {
+    "walk": {
+      "duration": 1.0,
+      "bones": {
+        "arm_l": {
+          "rotate": [{"time":0.0,"value":-25.0,"curve":"ease_in_out"},{"time":0.5,"value":25.0,"curve":"ease_in_out"},{"time":1.0,"value":-25.0}]
+        },
+        "arm_r": {
+          "rotate": [{"time":0.0,"value":25.0,"curve":"ease_in_out"},{"time":0.5,"value":-25.0,"curve":"ease_in_out"},{"time":1.0,"value":25.0}]
+        },
+        "forearm_l": {"rotate":[{"time":0.0,"value":20.0}]},
+        "forearm_r": {"rotate":[{"time":0.0,"value":20.0}]},
+        "hip": {
+          "translate": [
+            {"time":0.0,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":0.25,"value":[0.0,6.0],"curve":"ease_in_out"},
+            {"time":0.5,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":0.75,"value":[0.0,6.0],"curve":"ease_in_out"},
+            {"time":1.0,"value":[0.0,0.0]}
+          ]
+        },
+        "shin_l": {"rotate":[{"time":0.0,"value":0.0},{"time":0.25,"value":-10.0},{"time":0.6,"value":-50.0},{"time":1.0,"value":0.0}]},
+        "shin_r": {"rotate":[{"time":0.0,"value":-50.0},{"time":0.5,"value":0.0},{"time":0.75,"value":-10.0},{"time":1.0,"value":-50.0}]},
+        "thigh_l": {
+          "rotate": [{"time":0.0,"value":28.0,"curve":"ease_in_out"},{"time":0.5,"value":-28.0,"curve":"ease_in_out"},{"time":1.0,"value":28.0}]
+        },
+        "thigh_r": {
+          "rotate": [{"time":0.0,"value":-28.0,"curve":"ease_in_out"},{"time":0.5,"value":28.0,"curve":"ease_in_out"},{"time":1.0,"value":-28.0}]
+        }
+      },
+      "slots": {"head":{"attachment":[{"time":0.8,"name":"blink"},{"time":0.9,"name":"open"}]}}
+    }
+  }
+}

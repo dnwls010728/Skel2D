@@ -1,0 +1,731 @@
+{
+  "format": "skel2d/1",
+  "name": "character",
+  "bones": [
+    {"name":"root","x":-12.5},
+    {"name":"hip","parent":"root","y":674.0,"rotation":90.0,"length":270.0},
+    {"name":"chest","parent":"hip","x":270.0,"length":155.0},
+    {"name":"head","parent":"chest","x":155.0,"rotation":0.955,"length":300.042},
+    {"name":"upper_arm_l","parent":"chest","x":110.0,"y":-110.0,"rotation":-152.354,"length":237.065},
+    {"name":"forearm_l","parent":"upper_arm_l","x":237.065,"rotation":7.488,"length":165.076},
+    {"name":"hand_l","parent":"forearm_l","x":165.076,"rotation":-1.444,"length":108.167},
+    {"name":"thigh_l","parent":"hip","x":-30.0,"y":-70.0,"rotation":-171.573,"length":272.947},
+    {"name":"shin_l","parent":"thigh_l","x":272.947,"rotation":2.459,"length":264.764},
+    {"name":"foot_l","parent":"shin_l","x":264.764,"y":-0.002,"rotation":37.48,"length":120.416},
+    {"name":"leg_target_l","parent":"root","x":160.0,"y":114.0},
+    {"name":"upper_arm_r","parent":"chest","x":110.0,"y":110.0,"rotation":154.537,"length":232.594},
+    {"name":"forearm_r","parent":"upper_arm_r","x":232.594,"y":-0.001,"rotation":-9.671,"length":165.076},
+    {"name":"hand_r","parent":"forearm_r","x":165.076,"y":-0.001,"rotation":2.858,"length":112.361},
+    {"name":"thigh_r","parent":"hip","x":-30.0,"y":65.0,"rotation":172.614,"length":272.259},
+    {"name":"shin_r","parent":"thigh_r","x":272.259,"rotation":-0.281,"length":262.345},
+    {"name":"foot_r","parent":"shin_r","x":262.345,"y":0.001,"rotation":-42.232,"length":124.197},
+    {"name":"leg_target_r","parent":"root","x":-135.0,"y":114.0}
+  ],
+  "slots": [
+    {
+      "name": "body",
+      "bone": "root",
+      "attachment": "image",
+      "attachments": [
+        {
+          "type": "mesh",
+          "name": "image",
+          "image": "character.png",
+          "vertices": [
+            {
+              "x": -182.5,
+              "y": 1414.0,
+              "u": 0.3315,
+              "v": 0.0,
+              "weights": [{"bone":"head","weight":0.91},{"bone":"chest","weight":0.051},{"bone":"upper_arm_r","weight":0.039}]
+            },
+            {"x":-92.5,"y":1414.0,"u":0.4144,"v":0.0,"weights":[{"bone":"head","weight":0.988},{"bone":"chest","weight":0.012}]},
+            {
+              "x": -92.5,
+              "y": 1324.0,
+              "u": 0.4144,
+              "v": 0.0622,
+              "weights": [{"bone":"head","weight":0.959},{"bone":"chest","weight":0.024},{"bone":"upper_arm_r","weight":0.017}]
+            },
+            {
+              "x": -182.5,
+              "y": 1324.0,
+              "u": 0.3315,
+              "v": 0.0622,
+              "weights": [{"bone":"head","weight":0.812},{"bone":"chest","weight":0.108},{"bone":"upper_arm_r","weight":0.08}]
+            },
+            {"x":-2.5,"y":1414.0,"u":0.4972,"v":0.0,"weights":[{"bone":"head","weight":1.0}]},
+            {"x":-2.5,"y":1324.0,"u":0.4972,"v":0.0622,"weights":[{"bone":"head","weight":1.0}]},
+            {"x":87.5,"y":1414.0,"u":0.5801,"v":0.0,"weights":[{"bone":"head","weight":0.989},{"bone":"chest","weight":0.011}]},
+            {
+              "x": 87.5,
+              "y": 1324.0,
+              "u": 0.5801,
+              "v": 0.0622,
+              "weights": [{"bone":"head","weight":0.903},{"bone":"chest","weight":0.057},{"bone":"upper_arm_l","weight":0.04}]
+            },
+            {
+              "x": 177.5,
+              "y": 1414.0,
+              "u": 0.663,
+              "v": 0.0,
+              "weights": [{"bone":"head","weight":0.87},{"bone":"chest","weight":0.075},{"bone":"upper_arm_l","weight":0.055}]
+            },
+            {
+              "x": 177.5,
+              "y": 1324.0,
+              "u": 0.663,
+              "v": 0.0622,
+              "weights": [{"bone":"head","weight":0.728},{"bone":"chest","weight":0.162},{"bone":"upper_arm_l","weight":0.11}]
+            },
+            {
+              "x": -92.5,
+              "y": 1234.0,
+              "u": 0.4144,
+              "v": 0.1243,
+              "weights": [{"bone":"head","weight":0.874},{"bone":"chest","weight":0.078},{"bone":"upper_arm_r","weight":0.048}]
+            },
+            {
+              "x": -182.5,
+              "y": 1234.0,
+              "u": 0.3315,
+              "v": 0.1243,
+              "weights": [{"bone":"head","weight":0.683},{"bone":"chest","weight":0.188},{"bone":"upper_arm_r","weight":0.129}]
+            },
+            {"x":-2.5,"y":1234.0,"u":0.4972,"v":0.1243,"weights":[{"bone":"head","weight":1.0}]},
+            {
+              "x": 87.5,
+              "y": 1234.0,
+              "u": 0.5801,
+              "v": 0.1243,
+              "weights": [{"bone":"head","weight":0.749},{"bone":"chest","weight":0.157},{"bone":"upper_arm_l","weight":0.094}]
+            },
+            {
+              "x": 177.5,
+              "y": 1234.0,
+              "u": 0.663,
+              "v": 0.1243,
+              "weights": [{"bone":"head","weight":0.728},{"bone":"chest","weight":0.162},{"bone":"upper_arm_l","weight":0.11}]
+            },
+            {
+              "x": -92.5,
+              "y": 1144.0,
+              "u": 0.4144,
+              "v": 0.1865,
+              "weights": [{"bone":"head","weight":0.503},{"bone":"chest","weight":0.275},{"bone":"upper_arm_r","weight":0.222}]
+            },
+            {
+              "x": -182.5,
+              "y": 1144.0,
+              "u": 0.3315,
+              "v": 0.1865,
+              "weights": [{"bone":"head","weight":0.533},{"bone":"chest","weight":0.249},{"bone":"upper_arm_r","weight":0.218}]
+            },
+            {"x":-2.5,"y":1144.0,"u":0.4972,"v":0.1865,"weights":[{"bone":"head","weight":1.0}]},
+            {
+              "x": 87.5,
+              "y": 1144.0,
+              "u": 0.5801,
+              "v": 0.1865,
+              "weights": [{"bone":"head","weight":0.529},{"bone":"chest","weight":0.279},{"bone":"upper_arm_l","weight":0.192}]
+            },
+            {
+              "x": 177.5,
+              "y": 1144.0,
+              "u": 0.663,
+              "v": 0.1865,
+              "weights": [{"bone":"head","weight":0.581},{"bone":"chest","weight":0.245},{"bone":"upper_arm_l","weight":0.174}]
+            },
+            {
+              "x": -92.5,
+              "y": 1054.0,
+              "u": 0.4144,
+              "v": 0.2486,
+              "weights": [{"bone":"upper_arm_r","weight":0.927},{"bone":"chest","weight":0.047},{"bone":"head","weight":0.026}]
+            },
+            {"x":-182.5,"y":1054.0,"u":0.3315,"v":0.2486,"weights":[{"bone":"upper_arm_r","weight":1.0}]},
+            {"x":-2.5,"y":1054.0,"u":0.4972,"v":0.2486,"weights":[{"bone":"chest","weight":1.0}]},
+            {"x":87.5,"y":1054.0,"u":0.5801,"v":0.2486,"weights":[{"bone":"upper_arm_l","weight":1.0}]},
+            {"x":177.5,"y":1054.0,"u":0.663,"v":0.2486,"weights":[{"bone":"upper_arm_l","weight":1.0}]},
+            {"x":-272.5,"y":1054.0,"u":0.2486,"v":0.2486,"weights":[{"bone":"upper_arm_r","weight":1.0}]},
+            {"x":-182.5,"y":964.0,"u":0.3315,"v":0.3108,"weights":[{"bone":"upper_arm_r","weight":1.0}]},
+            {
+              "x": -272.5,
+              "y": 964.0,
+              "u": 0.2486,
+              "v": 0.3108,
+              "weights": [{"bone":"upper_arm_r","weight":0.926},{"bone":"forearm_r","weight":0.074}]
+            },
+            {
+              "x": -92.5,
+              "y": 964.0,
+              "u": 0.4144,
+              "v": 0.3108,
+              "weights": [{"bone":"upper_arm_r","weight":0.556},{"bone":"chest","weight":0.257},{"bone":"hip","weight":0.187}]
+            },
+            {"x":-2.5,"y":964.0,"u":0.4972,"v":0.3108,"weights":[{"bone":"chest","weight":0.968},{"bone":"hip","weight":0.032}]},
+            {
+              "x": 87.5,
+              "y": 964.0,
+              "u": 0.5801,
+              "v": 0.3108,
+              "weights": [{"bone":"upper_arm_l","weight":0.804},{"bone":"chest","weight":0.111},{"bone":"hip","weight":0.085}]
+            },
+            {"x":177.5,"y":964.0,"u":0.663,"v":0.3108,"weights":[{"bone":"upper_arm_l","weight":0.989},{"bone":"forearm_l","weight":0.011}]},
+            {
+              "x": 267.5,
+              "y": 1054.0,
+              "u": 0.7459,
+              "v": 0.2486,
+              "weights": [{"bone":"upper_arm_l","weight":0.985},{"bone":"forearm_l","weight":0.015}]
+            },
+            {
+              "x": 267.5,
+              "y": 964.0,
+              "u": 0.7459,
+              "v": 0.3108,
+              "weights": [{"bone":"upper_arm_l","weight":0.859},{"bone":"forearm_l","weight":0.141}]
+            },
+            {
+              "x": -182.5,
+              "y": 874.0,
+              "u": 0.3315,
+              "v": 0.3729,
+              "weights": [{"bone":"upper_arm_r","weight":0.924},{"bone":"forearm_r","weight":0.076}]
+            },
+            {
+              "x": -272.5,
+              "y": 874.0,
+              "u": 0.2486,
+              "v": 0.3729,
+              "weights": [{"bone":"forearm_r","weight":0.512},{"bone":"upper_arm_r","weight":0.476},{"bone":"hand_r","weight":0.012}]
+            },
+            {
+              "x": -92.5,
+              "y": 874.0,
+              "u": 0.4144,
+              "v": 0.3729,
+              "weights": [{"bone":"hip","weight":0.528},{"bone":"upper_arm_r","weight":0.25},{"bone":"chest","weight":0.222}]
+            },
+            {"x":-2.5,"y":874.0,"u":0.4972,"v":0.3729,"weights":[{"bone":"hip","weight":1.0}]},
+            {
+              "x": 87.5,
+              "y": 874.0,
+              "u": 0.5801,
+              "v": 0.3729,
+              "weights": [{"bone":"upper_arm_l","weight":0.443},{"bone":"hip","weight":0.378},{"bone":"chest","weight":0.179}]
+            },
+            {"x":177.5,"y":874.0,"u":0.663,"v":0.3729,"weights":[{"bone":"upper_arm_l","weight":0.981},{"bone":"forearm_l","weight":0.019}]},
+            {
+              "x": 267.5,
+              "y": 874.0,
+              "u": 0.7459,
+              "v": 0.3729,
+              "weights": [{"bone":"forearm_l","weight":0.522},{"bone":"upper_arm_l","weight":0.459},{"bone":"hand_l","weight":0.019}]
+            },
+            {
+              "x": -362.5,
+              "y": 874.0,
+              "u": 0.1657,
+              "v": 0.3729,
+              "weights": [{"bone":"forearm_r","weight":0.941},{"bone":"upper_arm_r","weight":0.037},{"bone":"hand_r","weight":0.022}]
+            },
+            {"x":-272.5,"y":784.0,"u":0.2486,"v":0.4351,"weights":[{"bone":"forearm_r","weight":1.0}]},
+            {"x":-362.5,"y":784.0,"u":0.1657,"v":0.4351,"weights":[{"bone":"forearm_r","weight":0.84},{"bone":"hand_r","weight":0.16}]},
+            {
+              "x": -182.5,
+              "y": 784.0,
+              "u": 0.3315,
+              "v": 0.4351,
+              "weights": [{"bone":"forearm_r","weight":0.63},{"bone":"upper_arm_r","weight":0.347},{"bone":"hand_r","weight":0.023}]
+            },
+            {
+              "x": -92.5,
+              "y": 784.0,
+              "u": 0.4144,
+              "v": 0.4351,
+              "weights": [{"bone":"hip","weight":0.791},{"bone":"thigh_r","weight":0.137},{"bone":"upper_arm_r","weight":0.072}]
+            },
+            {"x":-2.5,"y":784.0,"u":0.4972,"v":0.4351,"weights":[{"bone":"hip","weight":1.0}]},
+            {
+              "x": 87.5,
+              "y": 784.0,
+              "u": 0.5801,
+              "v": 0.4351,
+              "weights": [{"bone":"hip","weight":0.686},{"bone":"thigh_l","weight":0.173},{"bone":"upper_arm_l","weight":0.141}]
+            },
+            {
+              "x": 177.5,
+              "y": 784.0,
+              "u": 0.663,
+              "v": 0.4351,
+              "weights": [{"bone":"forearm_l","weight":0.637},{"bone":"upper_arm_l","weight":0.34},{"bone":"hand_l","weight":0.023}]
+            },
+            {"x":267.5,"y":784.0,"u":0.7459,"v":0.4351,"weights":[{"bone":"forearm_l","weight":1.0}]},
+            {
+              "x": 357.5,
+              "y": 874.0,
+              "u": 0.8287,
+              "v": 0.3729,
+              "weights": [{"bone":"forearm_l","weight":0.928},{"bone":"upper_arm_l","weight":0.039},{"bone":"hand_l","weight":0.033}]
+            },
+            {"x":357.5,"y":784.0,"u":0.8287,"v":0.4351,"weights":[{"bone":"forearm_l","weight":0.772},{"bone":"hand_l","weight":0.228}]},
+            {"x":-452.5,"y":784.0,"u":0.0829,"v":0.4351,"weights":[{"bone":"hand_r","weight":0.594},{"bone":"forearm_r","weight":0.406}]},
+            {"x":-362.5,"y":694.0,"u":0.1657,"v":0.4972,"weights":[{"bone":"hand_r","weight":0.802},{"bone":"forearm_r","weight":0.198}]},
+            {
+              "x": -452.5,
+              "y": 694.0,
+              "u": 0.0829,
+              "v": 0.4972,
+              "weights": [{"bone":"hand_r","weight":0.698},{"bone":"forearm_r","weight":0.285},{"bone":"upper_arm_r","weight":0.017}]
+            },
+            {"x":-272.5,"y":694.0,"u":0.2486,"v":0.4972,"weights":[{"bone":"forearm_r","weight":0.732},{"bone":"hand_r","weight":0.268}]},
+            {
+              "x": -182.5,
+              "y": 694.0,
+              "u": 0.3315,
+              "v": 0.4972,
+              "weights": [{"bone":"thigh_r","weight":0.556},{"bone":"hip","weight":0.372},{"bone":"upper_arm_r","weight":0.072}]
+            },
+            {
+              "x": -92.5,
+              "y": 694.0,
+              "u": 0.4144,
+              "v": 0.4972,
+              "weights": [{"bone":"thigh_r","weight":0.711},{"bone":"hip","weight":0.26},{"bone":"thigh_l","weight":0.029}]
+            },
+            {"x":-2.5,"y":694.0,"u":0.4972,"v":0.4972,"weights":[{"bone":"hip","weight":1.0}]},
+            {
+              "x": 87.5,
+              "y": 694.0,
+              "u": 0.5801,
+              "v": 0.4972,
+              "weights": [{"bone":"thigh_l","weight":0.745},{"bone":"hip","weight":0.223},{"bone":"thigh_r","weight":0.032}]
+            },
+            {
+              "x": 177.5,
+              "y": 694.0,
+              "u": 0.663,
+              "v": 0.4972,
+              "weights": [{"bone":"thigh_l","weight":0.503},{"bone":"hip","weight":0.371},{"bone":"upper_arm_l","weight":0.126}]
+            },
+            {"x":267.5,"y":694.0,"u":0.7459,"v":0.4972,"weights":[{"bone":"forearm_l","weight":0.76},{"bone":"hand_l","weight":0.24}]},
+            {"x":357.5,"y":694.0,"u":0.8287,"v":0.4972,"weights":[{"bone":"hand_l","weight":0.766},{"bone":"forearm_l","weight":0.234}]},
+            {
+              "x": 447.5,
+              "y": 784.0,
+              "u": 0.9116,
+              "v": 0.4351,
+              "weights": [{"bone":"hand_l","weight":0.567},{"bone":"forearm_l","weight":0.418},{"bone":"upper_arm_l","weight":0.015}]
+            },
+            {
+              "x": 447.5,
+              "y": 694.0,
+              "u": 0.9116,
+              "v": 0.4972,
+              "weights": [{"bone":"hand_l","weight":0.635},{"bone":"forearm_l","weight":0.343},{"bone":"upper_arm_l","weight":0.022}]
+            },
+            {"x":-362.5,"y":604.0,"u":0.1657,"v":0.5594,"weights":[{"bone":"hand_r","weight":1.0}]},
+            {"x":-452.5,"y":604.0,"u":0.0829,"v":0.5594,"weights":[{"bone":"hand_r","weight":0.963},{"bone":"forearm_r","weight":0.037}]},
+            {"x":-272.5,"y":604.0,"u":0.2486,"v":0.5594,"weights":[{"bone":"hand_r","weight":0.831},{"bone":"forearm_r","weight":0.169}]},
+            {"x":-92.5,"y":604.0,"u":0.4144,"v":0.5594,"weights":[{"bone":"thigh_r","weight":1.0}]},
+            {
+              "x": -182.5,
+              "y": 604.0,
+              "u": 0.3315,
+              "v": 0.5594,
+              "weights": [{"bone":"thigh_r","weight":0.922},{"bone":"hip","weight":0.048},{"bone":"shin_r","weight":0.03}]
+            },
+            {
+              "x": -2.5,
+              "y": 604.0,
+              "u": 0.4972,
+              "v": 0.5594,
+              "weights": [{"bone":"hip","weight":0.43},{"bone":"thigh_r","weight":0.304},{"bone":"thigh_l","weight":0.266}]
+            },
+            {"x":87.5,"y":604.0,"u":0.5801,"v":0.5594,"weights":[{"bone":"thigh_l","weight":1.0}]},
+            {
+              "x": 177.5,
+              "y": 604.0,
+              "u": 0.663,
+              "v": 0.5594,
+              "weights": [{"bone":"thigh_l","weight":0.91},{"bone":"hip","weight":0.051},{"bone":"shin_l","weight":0.039}]
+            },
+            {"x":357.5,"y":604.0,"u":0.8287,"v":0.5594,"weights":[{"bone":"hand_l","weight":1.0}]},
+            {"x":267.5,"y":604.0,"u":0.7459,"v":0.5594,"weights":[{"bone":"hand_l","weight":0.901},{"bone":"forearm_l","weight":0.099}]},
+            {"x":447.5,"y":604.0,"u":0.9116,"v":0.5594,"weights":[{"bone":"hand_l","weight":0.935},{"bone":"forearm_l","weight":0.065}]},
+            {"x":-362.5,"y":514.0,"u":0.1657,"v":0.6215,"weights":[{"bone":"hand_r","weight":0.99},{"bone":"forearm_r","weight":0.01}]},
+            {"x":-452.5,"y":514.0,"u":0.0829,"v":0.6215,"weights":[{"bone":"hand_r","weight":0.99},{"bone":"forearm_r","weight":0.01}]},
+            {"x":-272.5,"y":514.0,"u":0.2486,"v":0.6215,"weights":[{"bone":"hand_r","weight":0.973},{"bone":"forearm_r","weight":0.027}]},
+            {"x":-92.5,"y":514.0,"u":0.4144,"v":0.6215,"weights":[{"bone":"thigh_r","weight":1.0}]},
+            {
+              "x": -182.5,
+              "y": 514.0,
+              "u": 0.3315,
+              "v": 0.6215,
+              "weights": [{"bone":"thigh_r","weight":0.87},{"bone":"shin_r","weight":0.101},{"bone":"hip","weight":0.029}]
+            },
+            {
+              "x": -2.5,
+              "y": 514.0,
+              "u": 0.4972,
+              "v": 0.6215,
+              "weights": [{"bone":"thigh_r","weight":0.84},{"bone":"hip","weight":0.089},{"bone":"thigh_l","weight":0.071}]
+            },
+            {"x":87.5,"y":514.0,"u":0.5801,"v":0.6215,"weights":[{"bone":"thigh_l","weight":1.0}]},
+            {
+              "x": 177.5,
+              "y": 514.0,
+              "u": 0.663,
+              "v": 0.6215,
+              "weights": [{"bone":"thigh_l","weight":0.852},{"bone":"shin_l","weight":0.112},{"bone":"hip","weight":0.036}]
+            },
+            {"x":357.5,"y":514.0,"u":0.8287,"v":0.6215,"weights":[{"bone":"hand_l","weight":0.978},{"bone":"forearm_l","weight":0.022}]},
+            {"x":267.5,"y":514.0,"u":0.7459,"v":0.6215,"weights":[{"bone":"hand_l","weight":0.94},{"bone":"forearm_l","weight":0.06}]},
+            {"x":447.5,"y":514.0,"u":0.9116,"v":0.6215,"weights":[{"bone":"hand_l","weight":0.974},{"bone":"forearm_l","weight":0.026}]},
+            {"x":-92.5,"y":424.0,"u":0.4144,"v":0.6837,"weights":[{"bone":"thigh_r","weight":0.989},{"bone":"shin_r","weight":0.011}]},
+            {"x":-182.5,"y":424.0,"u":0.3315,"v":0.6837,"weights":[{"bone":"thigh_r","weight":0.731},{"bone":"shin_r","weight":0.269}]},
+            {
+              "x": -2.5,
+              "y": 424.0,
+              "u": 0.4972,
+              "v": 0.6837,
+              "weights": [{"bone":"thigh_r","weight":0.845},{"bone":"shin_r","weight":0.138},{"bone":"hip","weight":0.017}]
+            },
+            {"x":87.5,"y":424.0,"u":0.5801,"v":0.6837,"weights":[{"bone":"thigh_l","weight":1.0}]},
+            {"x":177.5,"y":424.0,"u":0.663,"v":0.6837,"weights":[{"bone":"thigh_l","weight":0.614},{"bone":"shin_l","weight":0.386}]},
+            {"x":-92.5,"y":334.0,"u":0.4144,"v":0.7459,"weights":[{"bone":"shin_r","weight":0.917},{"bone":"thigh_r","weight":0.083}]},
+            {
+              "x": -182.5,
+              "y": 334.0,
+              "u": 0.3315,
+              "v": 0.7459,
+              "weights": [{"bone":"shin_r","weight":0.715},{"bone":"thigh_r","weight":0.273},{"bone":"foot_r","weight":0.012}]
+            },
+            {"x":-2.5,"y":334.0,"u":0.4972,"v":0.7459,"weights":[{"bone":"thigh_r","weight":0.544},{"bone":"shin_r","weight":0.456}]},
+            {"x":87.5,"y":334.0,"u":0.5801,"v":0.7459,"weights":[{"bone":"shin_l","weight":0.967},{"bone":"thigh_l","weight":0.033}]},
+            {
+              "x": 177.5,
+              "y": 334.0,
+              "u": 0.663,
+              "v": 0.7459,
+              "weights": [{"bone":"shin_l","weight":0.727},{"bone":"thigh_l","weight":0.251},{"bone":"foot_l","weight":0.022}]
+            },
+            {
+              "x": 267.5,
+              "y": 424.0,
+              "u": 0.7459,
+              "v": 0.6837,
+              "weights": [{"bone":"shin_l","weight":0.635},{"bone":"thigh_l","weight":0.348},{"bone":"foot_l","weight":0.017}]
+            },
+            {
+              "x": 267.5,
+              "y": 334.0,
+              "u": 0.7459,
+              "v": 0.7459,
+              "weights": [{"bone":"shin_l","weight":0.808},{"bone":"thigh_l","weight":0.142},{"bone":"foot_l","weight":0.05}]
+            },
+            {
+              "x": -272.5,
+              "y": 334.0,
+              "u": 0.2486,
+              "v": 0.7459,
+              "weights": [{"bone":"shin_r","weight":0.766},{"bone":"thigh_r","weight":0.216},{"bone":"foot_r","weight":0.018}]
+            },
+            {
+              "x": -182.5,
+              "y": 244.0,
+              "u": 0.3315,
+              "v": 0.808,
+              "weights": [{"bone":"shin_r","weight":0.92},{"bone":"foot_r","weight":0.05},{"bone":"thigh_r","weight":0.03}]
+            },
+            {
+              "x": -272.5,
+              "y": 244.0,
+              "u": 0.2486,
+              "v": 0.808,
+              "weights": [{"bone":"shin_r","weight":0.796},{"bone":"foot_r","weight":0.178},{"bone":"thigh_r","weight":0.026}]
+            },
+            {
+              "x": -92.5,
+              "y": 244.0,
+              "u": 0.4144,
+              "v": 0.808,
+              "weights": [{"bone":"shin_r","weight":0.965},{"bone":"thigh_r","weight":0.019},{"bone":"foot_r","weight":0.016}]
+            },
+            {
+              "x": -2.5,
+              "y": 244.0,
+              "u": 0.4972,
+              "v": 0.808,
+              "weights": [{"bone":"shin_r","weight":0.787},{"bone":"thigh_r","weight":0.198},{"bone":"foot_r","weight":0.015}]
+            },
+            {
+              "x": 87.5,
+              "y": 244.0,
+              "u": 0.5801,
+              "v": 0.808,
+              "weights": [{"bone":"shin_l","weight":0.967},{"bone":"thigh_l","weight":0.019},{"bone":"foot_l","weight":0.014}]
+            },
+            {
+              "x": 177.5,
+              "y": 244.0,
+              "u": 0.663,
+              "v": 0.808,
+              "weights": [{"bone":"shin_l","weight":0.921},{"bone":"foot_l","weight":0.05},{"bone":"thigh_l","weight":0.029}]
+            },
+            {
+              "x": 267.5,
+              "y": 244.0,
+              "u": 0.7459,
+              "v": 0.808,
+              "weights": [{"bone":"shin_l","weight":0.756},{"bone":"foot_l","weight":0.213},{"bone":"thigh_l","weight":0.031}]
+            },
+            {"x":-182.5,"y":154.0,"u":0.3315,"v":0.8702,"weights":[{"bone":"shin_r","weight":0.699},{"bone":"foot_r","weight":0.301}]},
+            {"x":-272.5,"y":154.0,"u":0.2486,"v":0.8702,"weights":[{"bone":"foot_r","weight":0.94},{"bone":"shin_r","weight":0.06}]},
+            {"x":-92.5,"y":154.0,"u":0.4144,"v":0.8702,"weights":[{"bone":"shin_r","weight":0.773},{"bone":"foot_r","weight":0.227}]},
+            {
+              "x": -2.5,
+              "y": 154.0,
+              "u": 0.4972,
+              "v": 0.8702,
+              "weights": [{"bone":"shin_r","weight":0.918},{"bone":"foot_r","weight":0.05},{"bone":"thigh_r","weight":0.032}]
+            },
+            {"x":87.5,"y":154.0,"u":0.5801,"v":0.8702,"weights":[{"bone":"shin_l","weight":0.809},{"bone":"foot_l","weight":0.191}]},
+            {"x":177.5,"y":154.0,"u":0.663,"v":0.8702,"weights":[{"bone":"shin_l","weight":0.72},{"bone":"foot_l","weight":0.28}]},
+            {"x":267.5,"y":154.0,"u":0.7459,"v":0.8702,"weights":[{"bone":"foot_l","weight":0.858},{"bone":"shin_l","weight":0.142}]},
+            {"x":-182.5,"y":64.0,"u":0.3315,"v":0.9323,"weights":[{"bone":"foot_r","weight":0.979},{"bone":"shin_r","weight":0.021}]},
+            {"x":-272.5,"y":64.0,"u":0.2486,"v":0.9323,"weights":[{"bone":"foot_r","weight":0.988},{"bone":"shin_r","weight":0.012}]},
+            {"x":-92.5,"y":64.0,"u":0.4144,"v":0.9323,"weights":[{"bone":"shin_r","weight":0.503},{"bone":"foot_r","weight":0.497}]},
+            {"x":-2.5,"y":64.0,"u":0.4972,"v":0.9323,"weights":[{"bone":"shin_r","weight":0.773},{"bone":"foot_r","weight":0.227}]},
+            {"x":177.5,"y":64.0,"u":0.663,"v":0.9323,"weights":[{"bone":"foot_l","weight":0.976},{"bone":"shin_l","weight":0.024}]},
+            {"x":87.5,"y":64.0,"u":0.5801,"v":0.9323,"weights":[{"bone":"shin_l","weight":0.502},{"bone":"foot_l","weight":0.498}]},
+            {"x":267.5,"y":64.0,"u":0.7459,"v":0.9323,"weights":[{"bone":"foot_l","weight":0.978},{"bone":"shin_l","weight":0.022}]},
+            {"x":-362.5,"y":64.0,"u":0.1657,"v":0.9323,"weights":[{"bone":"foot_r","weight":1.0}]},
+            {"x":-272.5,"y":-26.0,"u":0.2486,"v":0.9945,"weights":[{"bone":"foot_r","weight":0.982},{"bone":"shin_r","weight":0.018}]},
+            {"x":-362.5,"y":-26.0,"u":0.1657,"v":0.9945,"weights":[{"bone":"foot_r","weight":1.0}]},
+            {"x":-182.5,"y":-26.0,"u":0.3315,"v":0.9945,"weights":[{"bone":"foot_r","weight":0.953},{"bone":"shin_r","weight":0.047}]},
+            {"x":-92.5,"y":-26.0,"u":0.4144,"v":0.9945,"weights":[{"bone":"foot_r","weight":0.664},{"bone":"shin_r","weight":0.336}]},
+            {"x":177.5,"y":-26.0,"u":0.663,"v":0.9945,"weights":[{"bone":"foot_l","weight":0.902},{"bone":"shin_l","weight":0.098}]},
+            {"x":87.5,"y":-26.0,"u":0.5801,"v":0.9945,"weights":[{"bone":"foot_l","weight":0.685},{"bone":"shin_l","weight":0.315}]},
+            {"x":267.5,"y":-26.0,"u":0.7459,"v":0.9945,"weights":[{"bone":"foot_l","weight":0.981},{"bone":"shin_l","weight":0.019}]},
+            {"x":357.5,"y":64.0,"u":0.8287,"v":0.9323,"weights":[{"bone":"foot_l","weight":0.976},{"bone":"shin_l","weight":0.024}]},
+            {"x":357.5,"y":-26.0,"u":0.8287,"v":0.9945,"weights":[{"bone":"foot_l","weight":0.976},{"bone":"shin_l","weight":0.024}]}
+          ],
+          "triangles": [
+            [0,3,1],
+            [1,3,2],
+            [1,2,5],
+            [1,5,4],
+            [4,5,6],
+            [6,5,7],
+            [6,7,9],
+            [6,9,8],
+            [3,11,10],
+            [3,10,2],
+            [2,10,5],
+            [5,10,12],
+            [5,12,13],
+            [5,13,7],
+            [7,13,9],
+            [9,13,14],
+            [11,16,10],
+            [10,16,15],
+            [10,15,17],
+            [10,17,12],
+            [12,17,13],
+            [13,17,18],
+            [13,18,19],
+            [13,19,14],
+            [16,21,20],
+            [16,20,15],
+            [15,20,17],
+            [17,20,22],
+            [17,22,23],
+            [17,23,18],
+            [18,23,19],
+            [19,23,24],
+            [25,27,26],
+            [25,26,21],
+            [21,26,20],
+            [20,26,28],
+            [20,28,29],
+            [20,29,22],
+            [22,29,23],
+            [23,29,30],
+            [23,30,31],
+            [23,31,24],
+            [24,31,32],
+            [32,31,33],
+            [27,35,26],
+            [26,35,34],
+            [26,34,36],
+            [26,36,28],
+            [28,36,29],
+            [29,36,37],
+            [29,37,38],
+            [29,38,30],
+            [30,38,31],
+            [31,38,39],
+            [31,39,40],
+            [31,40,33],
+            [41,43,35],
+            [35,43,42],
+            [35,42,44],
+            [35,44,34],
+            [34,44,36],
+            [36,44,45],
+            [36,45,46],
+            [36,46,37],
+            [37,46,38],
+            [38,46,47],
+            [38,47,48],
+            [38,48,39],
+            [39,48,40],
+            [40,48,49],
+            [40,49,51],
+            [40,51,50],
+            [52,54,43],
+            [43,54,53],
+            [43,53,55],
+            [43,55,42],
+            [42,55,44],
+            [44,55,56],
+            [44,56,57],
+            [44,57,45],
+            [45,57,46],
+            [46,57,58],
+            [46,58,59],
+            [46,59,47],
+            [47,59,48],
+            [48,59,60],
+            [48,60,61],
+            [48,61,49],
+            [49,61,51],
+            [51,61,62],
+            [51,62,64],
+            [51,64,63],
+            [54,66,65],
+            [54,65,53],
+            [53,65,55],
+            [55,65,67],
+            [56,69,57],
+            [57,69,68],
+            [57,68,70],
+            [57,70,58],
+            [58,70,59],
+            [59,70,71],
+            [59,71,72],
+            [59,72,60],
+            [61,74,73],
+            [61,73,62],
+            [62,73,64],
+            [64,73,75],
+            [66,77,65],
+            [65,77,76],
+            [65,76,78],
+            [65,78,67],
+            [69,80,79],
+            [69,79,68],
+            [68,79,70],
+            [70,79,81],
+            [70,81,82],
+            [70,82,71],
+            [71,82,72],
+            [72,82,83],
+            [74,85,73],
+            [73,85,84],
+            [73,84,86],
+            [73,86,75],
+            [80,88,79],
+            [79,88,87],
+            [79,87,89],
+            [79,89,81],
+            [81,89,82],
+            [82,89,90],
+            [82,90,91],
+            [82,91,83],
+            [88,93,92],
+            [88,92,87],
+            [87,92,89],
+            [89,92,94],
+            [89,94,95],
+            [89,95,90],
+            [90,95,91],
+            [91,95,96],
+            [91,96,98],
+            [91,98,97],
+            [99,101,100],
+            [99,100,93],
+            [93,100,92],
+            [92,100,102],
+            [92,102,103],
+            [92,103,94],
+            [94,103,95],
+            [95,103,104],
+            [95,104,105],
+            [95,105,96],
+            [96,105,98],
+            [98,105,106],
+            [101,108,100],
+            [100,108,107],
+            [100,107,109],
+            [100,109,102],
+            [102,109,103],
+            [103,109,110],
+            [103,110,111],
+            [103,111,104],
+            [104,111,105],
+            [105,111,112],
+            [105,112,113],
+            [105,113,106],
+            [108,115,114],
+            [108,114,107],
+            [107,114,109],
+            [109,114,116],
+            [109,116,117],
+            [109,117,110],
+            [111,119,118],
+            [111,118,112],
+            [112,118,113],
+            [113,118,120],
+            [121,123,122],
+            [121,122,115],
+            [115,122,114],
+            [114,122,124],
+            [114,124,125],
+            [114,125,116],
+            [119,127,118],
+            [118,127,126],
+            [118,126,128],
+            [118,128,120],
+            [120,128,129],
+            [129,128,130]
+          ]
+        }
+      ]
+    }
+  ],
+  "ik": [
+    {"name":"leg_ik_l","bones":["thigh_l","shin_l"],"target":"leg_target_l"},
+    {"name":"leg_ik_r","bones":["thigh_r","shin_r"],"target":"leg_target_r","bend_positive":false}
+  ],
+  "animations": {
+    "wave": {
+      "bones": {
+        "forearm_l": {"rotate":[{"time":0.0,"value":0.0,"curve":"ease_in_out"},{"time":0.5,"value":50.0,"curve":"ease_in_out"},{"time":1.0,"value":0.0}]},
+        "head": {
+          "rotate": [{"time":0.0,"value":0.0,"curve":"ease_in_out"},{"time":0.5,"value":-10.0,"curve":"ease_in_out"},{"time":1.0,"value":0.0}]
+        },
+        "leg_target_r": {
+          "translate": [
+            {"time":0.0,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":0.5,"value":[-40.0,120.0],"curve":"ease_in_out"},
+            {"time":1.0,"value":[0.0,0.0]}
+          ]
+        },
+        "upper_arm_l": {"rotate":[{"time":0.0,"value":0.0,"curve":"ease_in_out"},{"time":0.5,"value":95.0,"curve":"ease_in_out"},{"time":1.0,"value":0.0}]}
+      }
+    }
+  }
+}

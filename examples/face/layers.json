@@ -1,0 +1,25 @@
+{
+  "layers": [
+    {"name": "body", "image": "base_blank.png"},
+    {"name": "brows", "image": "parts/brows_neutral.png", "center": [527, 160], "scale": 0.8, "bone": "head",
+     "variants": [
+       {"name": "brows_raised", "image": "parts/brows_raised.png", "center": [527, 150]},
+       {"name": "brows_angry", "image": "parts/brows_angry.png"},
+       {"name": "brows_sad", "image": "parts/brows_sad.png"}]},
+    {"name": "eyes", "image": "parts/eyes_open.png", "center": [527, 212], "scale": 0.85, "bone": "head",
+     "variants": [
+       {"name": "eyes_closed", "image": "parts/eyes_closed.png", "center": [527, 220]},
+       {"name": "eyes_happy", "image": "parts/eyes_happy.png", "center": [527, 214]},
+       {"name": "eyes_angry", "image": "parts/eyes_angry.png"},
+       {"name": "eyes_sad", "image": "parts/eyes_sad.png"}]},
+    {"name": "mouth", "image": "parts/mouth_closed.png", "center": [530, 264], "scale": 0.7, "bone": "head",
+     "variants": [
+       {"name": "mouth_a", "image": "parts/mouth_a.png"},
+       {"name": "mouth_i", "image": "parts/mouth_i.png"},
+       {"name": "mouth_u", "image": "parts/mouth_u.png"},
+       {"name": "mouth_e", "image": "parts/mouth_e.png"},
+       {"name": "mouth_o", "image": "parts/mouth_o.png"},
+       {"name": "mouth_smile", "image": "parts/mouth_smile.png"},
+       {"name": "mouth_frown", "image": "parts/mouth_frown.png"}]}
+  ]
+}

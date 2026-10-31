@@ -1,0 +1,15 @@
+{
+  "canvas": [461, 720],
+  "layers": [
+    {"name": "RF", "image": "parts/RF.png", "x": 266, "y": 600, "bone": "foot_l"},
+    {"name": "RL", "image": "parts/RL.png", "x": 256, "y": 464, "mesh": true, "bones": ["thigh_l", "shin_l"]},
+    {"name": "LF", "image": "parts/LF.png", "x": 172, "y": 607, "bone": "foot_r"},
+    {"name": "LL", "image": "parts/LL.png", "x": 180, "y": 468, "mesh": true, "bones": ["thigh_r", "shin_r"]},
+    {"name": "RH", "image": "parts/RH.png", "x": 323, "y": 475, "bone": "hand_l"},
+    {"name": "RA", "image": "parts/RA.png", "x": 286, "y": 366, "mesh": true, "bones": ["upper_arm_l", "forearm_l"]},
+    {"name": "B", "image": "parts/B.png", "x": 196, "y": 347, "mesh": true, "bones": ["hip", "chest"]},
+    {"name": "LH", "image": "parts/LH.png", "x": 157, "y": 475, "bone": "hand_r"},
+    {"name": "LA", "image": "parts/LA.png", "x": 176, "y": 381, "mesh": true, "bones": ["upper_arm_r", "forearm_r"]},
+    {"name": "H", "image": "parts/H.png", "x": 115, "y": 113, "bone": "head"}
+  ]
+}

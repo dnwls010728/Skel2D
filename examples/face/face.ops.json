@@ -1,0 +1,22 @@
+[
+  {"op":"key_slot","animation":"face/happy","slot":"eyes","time":0,"attachment":"eyes_happy"},
+  {"op":"key_slot","animation":"face/happy","slot":"brows","time":0,"attachment":"brows_raised"},
+  {"op":"key_slot","animation":"face/happy","slot":"mouth","time":0,"attachment":"mouth_smile"},
+  {"op":"key_slot","animation":"face/angry","slot":"eyes","time":0,"attachment":"eyes_angry"},
+  {"op":"key_slot","animation":"face/angry","slot":"brows","time":0,"attachment":"brows_angry"},
+  {"op":"key_slot","animation":"face/angry","slot":"mouth","time":0,"attachment":"mouth_frown"},
+  {"op":"key_slot","animation":"face/sad","slot":"eyes","time":0,"attachment":"eyes_sad"},
+  {"op":"key_slot","animation":"face/sad","slot":"brows","time":0,"attachment":"brows_sad"},
+  {"op":"key_slot","animation":"face/sad","slot":"mouth","time":0,"attachment":"mouth_frown"},
+  {"op":"add_animation","name":"blink","duration":3.0},
+  {"op":"key_slot","animation":"blink","slot":"eyes","time":2.88,"attachment":"eyes_closed"},
+  {"op":"key_slot","animation":"blink","slot":"eyes","time":3.0,"reset":true},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":0.0,"attachment":"mouth_a"},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":0.364,"attachment":"mouth_e"},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":0.486,"attachment":"mouth_o"},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":0.607,"attachment":"mouth"},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":0.8,"attachment":"mouth_a"},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":1.043,"attachment":"mouth_o"},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":1.286,"attachment":"mouth"},
+  {"op":"key_slot","animation":"talk","slot":"mouth","time":1.5,"reset":true}
+]

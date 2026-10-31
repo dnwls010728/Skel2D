@@ -1,0 +1,203 @@
+{
+  "format": "skel2d/1",
+  "name": "skins",
+  "bones": [
+    {"name":"root"},
+    {"name":"hip","parent":"root","y":135.0},
+    {"name":"torso","parent":"hip","rotation":90.0,"length":90.0},
+    {"name":"head","parent":"torso","x":90.0,"length":95.0},
+    {"name":"leg_l","parent":"hip","x":-24.0,"rotation":-90.0,"length":130.0},
+    {"name":"leg_r","parent":"hip","x":24.0,"rotation":-90.0,"length":130.0},
+    {"name":"arm_l","parent":"torso","x":80.0,"y":58.0,"rotation":180.0,"length":123.0},
+    {"name":"arm_r","parent":"torso","x":80.0,"y":-58.0,"rotation":180.0,"length":123.0},
+    {"name":"item","parent":"arm_r","x":120.0,"rotation":180.0,"length":30.0}
+  ],
+  "slots": [
+    {"name":"hat_back","bone":"head","attachment":"hat_back"},
+    {"name":"leg_l","bone":"leg_l","attachment":"leg_l"},
+    {"name":"leg_r","bone":"leg_r","attachment":"leg_r"},
+    {"name":"torso","bone":"torso","attachment":"torso"},
+    {
+      "name": "head",
+      "bone": "head",
+      "attachment": "head",
+      "attachments": [{"type":"region","name":"head","image":"images/head.png","x":45.0,"rotation":-90.0,"width":104.0,"height":96.5}]
+    },
+    {"name":"hat","bone":"head","attachment":"hat"},
+    {"name":"arm_l","bone":"arm_l","attachment":"arm_l"},
+    {"name":"arm_r","bone":"arm_r","attachment":"arm_r"},
+    {"name":"item","bone":"item","attachment":"item"}
+  ],
+  "skins": [
+    {
+      "name": "knight",
+      "attachments": {
+        "arm_l": [
+          {
+            "type": "region",
+            "name": "arm_l",
+            "image": "images/knight_arm.png",
+            "x": 60.0,
+            "rotation": 90.0,
+            "scale_x": -1.0,
+            "width": 42.5,
+            "height": 124.0
+          }
+        ],
+        "arm_r": [{"type":"region","name":"arm_r","image":"images/knight_arm.png","x":60.0,"rotation":90.0,"width":42.5,"height":124.0}],
+        "hat": [{"type":"region","name":"hat","image":"images/knight_hat.png","x":48.0,"y":-3.0,"rotation":-90.0,"width":139.2,"height":144.6}],
+        "item": [{"type":"region","name":"item","image":"images/knight_item.png","x":39.0,"y":-22.0,"rotation":-120.0,"width":50.0,"height":131.5}],
+        "leg_l": [
+          {
+            "type": "region",
+            "name": "leg_l",
+            "image": "images/knight_leg.png",
+            "x": 65.0,
+            "rotation": 90.0,
+            "scale_x": -1.0,
+            "width": 42.5,
+            "height": 131.5
+          }
+        ],
+        "leg_r": [{"type":"region","name":"leg_r","image":"images/knight_leg.png","x":65.0,"rotation":90.0,"width":42.5,"height":131.5}],
+        "torso": [{"type":"region","name":"torso","image":"images/knight_torso.png","x":40.0,"rotation":-90.0,"width":105.0,"height":107.5}]
+      }
+    },
+    {
+      "name": "mage",
+      "attachments": {
+        "arm_l": [{"type":"region","name":"arm_l","image":"images/mage_arm.png","x":60.0,"rotation":90.0,"scale_x":-1.0,"width":50.5,"height":126.0}],
+        "arm_r": [{"type":"region","name":"arm_r","image":"images/mage_arm.png","x":60.0,"rotation":90.0,"width":50.5,"height":126.0}],
+        "hat": [{"type":"region","name":"hat","image":"images/mage_hat.png","x":105.0,"rotation":-90.0,"width":130.5,"height":103.0}],
+        "item": [{"type":"region","name":"item","image":"images/mage_item.png","x":39.0,"y":-22.0,"rotation":-120.0,"width":44.5,"height":138.5}],
+        "leg_l": [{"type":"region","name":"leg_l","image":"images/mage_leg.png","x":65.0,"rotation":90.0,"scale_x":-1.0,"width":72.0,"height":134.0}],
+        "leg_r": [{"type":"region","name":"leg_r","image":"images/mage_leg.png","x":65.0,"rotation":90.0,"width":72.0,"height":134.0}],
+        "torso": [{"type":"region","name":"torso","image":"images/mage_torso.png","x":40.0,"rotation":-90.0,"width":102.0,"height":121.5}]
+      }
+    },
+    {
+      "name": "ranger",
+      "attachments": {
+        "arm_l": [
+          {
+            "type": "region",
+            "name": "arm_l",
+            "image": "images/ranger_arm.png",
+            "x": 60.0,
+            "rotation": 90.0,
+            "scale_x": -1.0,
+            "width": 39.5,
+            "height": 123.5
+          }
+        ],
+        "arm_r": [{"type":"region","name":"arm_r","image":"images/ranger_arm.png","x":60.0,"rotation":90.0,"width":39.5,"height":123.5}],
+        "hat_back": [{"type":"region","name":"hat_back","image":"images/ranger_hat.png","x":42.0,"rotation":-90.0,"width":141.98,"height":150.04}],
+        "item": [{"type":"region","name":"item","image":"images/ranger_item.png","x":39.0,"y":-22.0,"rotation":-120.0,"width":42.5,"height":137.5}],
+        "leg_l": [
+          {
+            "type": "region",
+            "name": "leg_l",
+            "image": "images/ranger_leg.png",
+            "x": 65.0,
+            "rotation": 90.0,
+            "scale_x": -1.0,
+            "width": 46.5,
+            "height": 129.0
+          }
+        ],
+        "leg_r": [{"type":"region","name":"leg_r","image":"images/ranger_leg.png","x":65.0,"rotation":90.0,"width":46.5,"height":129.0}],
+        "torso": [{"type":"region","name":"torso","image":"images/ranger_torso.png","x":40.0,"rotation":-90.0,"width":98.0,"height":120.0}]
+      }
+    }
+  ],
+  "animations": {
+    "idle": {
+      "bones": {
+        "arm_l": {
+          "rotate": [
+            {"time":0.0,"value":0.0,"curve":"ease_in_out"},
+            {"time":1.0,"value":-4.0,"curve":"ease_in_out"},
+            {"time":2.0,"value":0.0,"curve":"ease_in_out"}
+          ]
+        },
+        "arm_r": {
+          "rotate": [
+            {"time":0.0,"value":0.0,"curve":"ease_in_out"},
+            {"time":1.0,"value":4.0,"curve":"ease_in_out"},
+            {"time":2.0,"value":0.0,"curve":"ease_in_out"}
+          ]
+        },
+        "head": {
+          "rotate": [
+            {"time":0.0,"value":0.0,"curve":"ease_in_out"},
+            {"time":1.0,"value":-3.0,"curve":"ease_in_out"},
+            {"time":2.0,"value":0.0,"curve":"ease_in_out"}
+          ]
+        },
+        "torso": {
+          "rotate": [
+            {"time":0.0,"value":0.0,"curve":"ease_in_out"},
+            {"time":1.0,"value":1.5,"curve":"ease_in_out"},
+            {"time":2.0,"value":0.0,"curve":"ease_in_out"}
+          ]
+        }
+      }
+    },
+    "walk": {
+      "bones": {
+        "arm_l": {
+          "rotate": [
+            {"time":0.0,"value":-20.0,"curve":"ease_in_out"},
+            {"time":0.4,"value":20.0,"curve":"ease_in_out"},
+            {"time":0.8,"value":-20.0,"curve":"ease_in_out"}
+          ]
+        },
+        "arm_r": {
+          "rotate": [
+            {"time":0.0,"value":20.0,"curve":"ease_in_out"},
+            {"time":0.4,"value":-20.0,"curve":"ease_in_out"},
+            {"time":0.8,"value":20.0,"curve":"ease_in_out"}
+          ]
+        },
+        "hip": {
+          "translate": [
+            {"time":0.0,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":0.2,"value":[0.0,6.0],"curve":"ease_in_out"},
+            {"time":0.4,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":0.6,"value":[0.0,6.0],"curve":"ease_in_out"},
+            {"time":0.8,"value":[0.0,0.0],"curve":"ease_in_out"}
+          ]
+        },
+        "leg_l": {
+          "rotate": [
+            {"time":0.0,"value":24.0,"curve":"ease_in_out"},
+            {"time":0.4,"value":-24.0,"curve":"ease_in_out"},
+            {"time":0.8,"value":24.0,"curve":"ease_in_out"}
+          ]
+        },
+        "leg_r": {
+          "rotate": [
+            {"time":0.0,"value":-24.0,"curve":"ease_in_out"},
+            {"time":0.4,"value":24.0,"curve":"ease_in_out"},
+            {"time":0.8,"value":-24.0,"curve":"ease_in_out"}
+          ]
+        }
+      }
+    },
+    "wave": {
+      "bones": {
+        "arm_l": {
+          "rotate": [
+            {"time":0.0,"value":0.0,"curve":"ease_in_out"},
+            {"time":0.3,"value":-150.0,"curve":"ease_in_out"},
+            {"time":0.5,"value":-125.0,"curve":"ease_in_out"},
+            {"time":0.7,"value":-160.0,"curve":"ease_in_out"},
+            {"time":0.9,"value":-125.0,"curve":"ease_in_out"},
+            {"time":1.1,"value":-150.0,"curve":"ease_in_out"},
+            {"time":1.5,"value":0.0,"curve":"ease_in_out"}
+          ]
+        }
+      }
+    }
+  }
+}

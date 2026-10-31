@@ -1,0 +1,33 @@
+[
+  {
+    "op": "set_attachment",
+    "slot": "skin",
+    "attachment": {
+      "type": "region",
+      "name": "arm",
+      "image": "trace.png",
+      "x": 60,
+      "width": 124,
+      "height": 26
+    }
+  },
+  {
+    "op": "trace_mesh",
+    "slot": "skin",
+    "attachment": "arm",
+    "alpha_threshold": 0.05,
+    "padding": 2,
+    "detail": 0.5,
+    "interior": "grid",
+    "spacing": 12,
+    "keep_weights": true
+  },
+  {
+    "op": "image_weights",
+    "slot": "skin",
+    "attachment": "arm",
+    "bones": ["upper", "lower"],
+    "max_influences": 4,
+    "falloff": 3
+  }
+]

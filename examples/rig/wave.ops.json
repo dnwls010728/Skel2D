@@ -1,0 +1,14 @@
+[
+  {"op":"key_bone","animation":"wave","bone":"upper_arm_l","time":0,"rotate":0,"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"upper_arm_l","time":0.5,"rotate":95,"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"upper_arm_l","time":1,"rotate":0},
+  {"op":"key_bone","animation":"wave","bone":"forearm_l","time":0,"rotate":0,"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"forearm_l","time":0.5,"rotate":50,"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"forearm_l","time":1,"rotate":0},
+  {"op":"key_bone","animation":"wave","bone":"head","time":0,"rotate":0,"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"head","time":0.5,"rotate":-10,"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"head","time":1,"rotate":0},
+  {"op":"key_bone","animation":"wave","bone":"leg_target_r","time":0,"translate":[0,0],"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"leg_target_r","time":0.5,"translate":[-40,120],"curve":"ease_in_out"},
+  {"op":"key_bone","animation":"wave","bone":"leg_target_r","time":1,"translate":[0,0]}
+]
