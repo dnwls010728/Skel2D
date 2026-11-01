@@ -432,6 +432,19 @@ fn without_pinches(mask: &Mask) -> Mask {
     Mask::from_fn(w, h, |x, y| solid[y * w + x])
 }
 
+/// The edge of an image's visible pixels as closed loops in image coordinates
+/// (0..=1, y down), simplified for drawing.
+pub fn alpha_outline(img: &tiny_skia::Pixmap) -> Vec<Vec<[f32; 2]>> {
+    let (small, f) = Mask::from_pixmap(img, crate::ALPHA_THRESHOLD).downscaled(512);
+    let (w, h) = (img.width() as f32, img.height() as f32);
+    trace_loops(&without_pinches(&small))
+        .iter()
+        .map(|l| simplify_closed(l, 1.0))
+        .filter(|l| l.len() >= 3)
+        .map(|l| l.into_iter().map(|[x, y]| [(x * f / w).min(1.0), (y * f / h).min(1.0)]).collect())
+        .collect()
+}
+
 /// Closed outlines along pixel edges, as corner points (pixel coordinates)
 /// with straight runs collapsed. Outer loops run clockwise on screen, holes
 /// counter-clockwise. The mask must be free of pinches.

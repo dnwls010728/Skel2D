@@ -247,9 +247,9 @@ pub fn key(image: &Path, out: &Path, color: &str, tolerance: u8) -> Result<Value
 
 /// Splits a PSD into one PNG per part plus a `layers.json` manifest (back to
 /// front, canvas positions) and `composite.png` (all parts, for placing joints).
-pub fn psd(file: &Path, out_dir: &Path, exclude: &[String], split: skel2d_rig::psd::Split) -> Result<Value> {
+pub fn psd(file: &Path, out_dir: &Path, exclude: &[String], split: skel2d_rig::psd::Split, hidden: skel2d_rig::psd::Hidden) -> Result<Value> {
     let bytes = std::fs::read(file).with_context(|| file.display().to_string())?;
-    let ([w, h], parts) = skel2d_rig::psd::import(&bytes, exclude, split).map_err(|e| anyhow!("{}: {e}", file.display()))?;
+    let ([w, h], parts) = skel2d_rig::psd::import(&bytes, exclude, split, hidden).map_err(|e| anyhow!("{}: {e}", file.display()))?;
     if parts.is_empty() {
         bail!("{}: no visible parts", file.display());
     }
@@ -277,5 +277,6 @@ pub fn psd(file: &Path, out_dir: &Path, exclude: &[String], split: skel2d_rig::p
     composite.save_png(&composite_path).map_err(|e| anyhow!("{}: {e}", composite_path.display()))?;
     let manifest = json!({ "canvas": [w, h], "layers": layers });
     std::fs::write(&manifest_path, serde_json::to_string_pretty(&manifest)? + "\n").with_context(|| manifest_path.display().to_string())?;
-    Ok(json!({ "canvas": [w, h], "manifest": manifest_path, "composite": composite_path, "parts": out }))
+    let origin = skel2d_rig::psd::origin(&bytes).map_err(|e| anyhow!("{}: {e}", file.display()))?;
+    Ok(json!({ "canvas": [w, h], "origin": [origin.x, origin.y], "origin_source": format!("{:?}", origin.source).to_lowercase(), "manifest": manifest_path, "composite": composite_path, "parts": out }))
 }

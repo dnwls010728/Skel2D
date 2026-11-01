@@ -249,7 +249,7 @@ pub fn gif_bytes(doc: &Document, base: &Path, job: &GifJob, opts: &GifOptions) -
     Ok((bytes, stats))
 }
 
-pub fn gif(file: &Path, out: &Path, args: &GifArgs) -> Result<Value> {
+fn gif_inputs(file: &Path, args: &GifArgs) -> Result<(Document, GifJob, GifOptions)> {
     let doc = skel2d_core::load(file)?;
     let job = GifJob {
         anim: args.anim.clone(),
@@ -265,7 +265,34 @@ pub fn gif(file: &Path, out: &Path, args: &GifArgs) -> Result<Value> {
         pause_after: args.pause_after, warm_up: args.warm_up, bones: args.bones, physics: !args.no_physics,
         scale: args.scale, fit: args.fit, enlarge: args.enlarge, pad: args.pad, crop: args.crop, range: args.range,
     };
+    Ok((doc, job, opts))
+}
+
+pub fn gif(file: &Path, out: &Path, args: &GifArgs) -> Result<Value> {
+    let (doc, job, opts) = gif_inputs(file, args)?;
     gif_export(&doc, &base_dir(file), &job, &opts, out, args.all_animations, args.all_skins)
+}
+
+/// A sprite sheet per planned file: `<name>.png` and `<name>.json`.
+pub fn sheet(file: &Path, out: &Path, columns: u32, padding: u32, args: &GifArgs) -> Result<Value> {
+    let (doc, job, opts) = gif_inputs(file, args)?;
+    let batch = args.all_animations || args.all_skins;
+    if batch {
+        std::fs::create_dir_all(out).with_context(|| out.display().to_string())?;
+    }
+    let base = base_dir(file);
+    let mut files = Vec::new();
+    for (stem, job) in gif_plan(&doc, &job, args.all_animations, args.all_skins) {
+        let path = if batch { out.join(format!("{stem}.png")) } else { out.to_path_buf() };
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let layout = skel2d_render::SheetOptions { columns, padding };
+        let (png, json, stats) = skel2d_render::render_sheet(&doc, &base, &job, &opts, layout, &name, &mut |_, _| true).map_err(|e| anyhow!(e))?;
+        let description = path.with_extension("json");
+        std::fs::write(&path, &png).with_context(|| path.display().to_string())?;
+        std::fs::write(&description, json).with_context(|| description.display().to_string())?;
+        files.push(json!({ "out": path, "json": description, "bytes": png.len(), "stats": stats }));
+    }
+    Ok(json!({ "files": files }))
 }
 
 pub fn schema(kind: &str) -> Result<Value> {

@@ -1,4 +1,4 @@
-//! GIF export from the editor: the form's data and the background worker.
+//! GIF and sprite sheet export from the editor: the form's data and the background worker.
 //! The document is copied, so editing goes on while it runs.
 
 use std::path::{Path, PathBuf};
@@ -8,14 +8,43 @@ use std::sync::mpsc::{Receiver, channel};
 
 use eframe::egui;
 use skel2d_core::Document;
-use skel2d_render::{GifJob, GifOptions, GifStats, MAX_GIF_FPS, gif_frame_count, gif_plan, render_gif};
+use skel2d_render::{GifJob, GifOptions, GifStats, MAX_GIF_FPS, MAX_SHEET_FPS, SheetOptions, gif_frame_count, gif_plan, render_gif, render_sheet, sheet_frame_count};
 
 use crate::app::EditorApp;
 use crate::i18n::tr;
 use crate::theme;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExportFormat {
+    Gif,
+    /// One PNG holding every frame, with a JSON file describing them.
+    Sheet,
+}
+
+impl ExportFormat {
+    fn extension(self) -> &'static str {
+        match self {
+            ExportFormat::Gif => "gif",
+            ExportFormat::Sheet => "png",
+        }
+    }
+
+    fn running(self) -> &'static str {
+        match self {
+            ExportFormat::Gif => "Exporting GIF",
+            ExportFormat::Sheet => "Exporting sprite sheet",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GifRequest {
+    pub format: ExportFormat,
+    /// Frames per row of a sheet; 0 picks a nearly square sheet.
+    pub columns: u32,
+    pub padding: u32,
+    /// A sheet's own choice: game engines want alpha, while a GIF usually does not.
+    pub sheet_transparent: bool,
     pub opts: GifOptions,
     pub anim: Option<String>,
     pub all_animations: bool,
@@ -29,6 +58,10 @@ impl GifRequest {
         let dir = app.path.as_ref().and_then(|p| p.parent()).map(Path::to_path_buf).unwrap_or_default();
         let anim = app.playback.anim.clone().or_else(|| app.doc.animations.keys().next().cloned());
         let mut request = Self {
+            format: ExportFormat::Gif,
+            columns: 0,
+            padding: 0,
+            sheet_transparent: true,
             opts: app.settings.gif.clone(),
             anim,
             all_animations: false,
@@ -46,7 +79,23 @@ impl GifRequest {
             Some(anim) => format!("{base}-{anim}"),
             None => base.to_string(),
         };
-        format!("{}.gif", skel2d_render::safe_file_name(&name))
+        format!("{}.{}", skel2d_render::safe_file_name(&name), self.format.extension())
+    }
+
+    /// What the renderer gets, with the choices that belong to the format.
+    fn opts_for_format(&self) -> GifOptions {
+        match self.format {
+            ExportFormat::Gif => GifOptions { fps: self.opts.fps.clamp(1.0, MAX_GIF_FPS), ..self.opts.clone() },
+            ExportFormat::Sheet => GifOptions { fps: self.opts.fps.clamp(1.0, MAX_SHEET_FPS), transparent: self.sheet_transparent, ..self.opts.clone() },
+        }
+    }
+
+    fn frame_count(&self, app: &EditorApp) -> u32 {
+        let (job, opts) = (self.job(app), self.opts_for_format());
+        match self.format {
+            ExportFormat::Gif => gif_frame_count(&app.doc, &job, &opts),
+            ExportFormat::Sheet => sheet_frame_count(&app.doc, &job, &opts),
+        }
     }
 
     /// The animation may have been renamed or removed since the last export.
@@ -65,7 +114,7 @@ impl GifRequest {
     /// Every output file with its job.
     fn plan(&self, app: &EditorApp) -> Vec<(PathBuf, GifJob)> {
         gif_plan(&app.doc, &self.job(app), self.all_animations, self.all_skins).into_iter().map(|(stem, job)| {
-            let path = if self.batch() { Path::new(&self.folder).join(format!("{stem}.gif")) } else { PathBuf::from(&self.file) };
+            let path = if self.batch() { Path::new(&self.folder).join(format!("{stem}.{}", self.format.extension())) } else { PathBuf::from(&self.file) };
             (path, job)
         }).collect()
     }
@@ -75,25 +124,28 @@ impl GifRequest {
         if target.trim().is_empty() {
             return Some(tr("Choose where to save").to_string());
         }
-        (!self.all_animations && gif_frame_count(&app.doc, &self.job(app), &self.opts_ready()) == 0).then(|| tr("The frame range is empty").to_string())
-    }
-
-    fn opts_ready(&self) -> GifOptions {
-        GifOptions { fps: self.opts.fps.clamp(1.0, MAX_GIF_FPS), ..self.opts.clone() }
+        (!self.all_animations && self.frame_count(app) == 0).then(|| tr("The frame range is empty").to_string())
     }
 
     fn summary(&self, app: &EditorApp) -> String {
         if self.batch() {
             return crate::tf!("{} files", self.plan(app).len());
         }
-        let job = self.job(app);
-        let frames = gif_frame_count(&app.doc, &job, &self.opts);
-        let fps = self.opts.fps.max(1.0);
+        let frames = self.frame_count(app);
+        let fps = self.opts_for_format().fps.max(1.0);
         crate::tf!("{} frames, {} seconds", frames, format!("{:.2}", frames as f32 / fps))
     }
 
     pub fn ui(&mut self, app: &EditorApp, ui: &mut egui::Ui) {
         let doc = &app.doc;
+        theme::field(ui, tr("Format"), "", |ui| {
+            let before = self.format;
+            theme::segmented(ui, &mut self.format, &[(ExportFormat::Gif, tr("GIF")), (ExportFormat::Sheet, tr("Sprite sheet"))]);
+            if before != self.format {
+                self.file = Path::new(&self.file).with_extension(self.format.extension()).display().to_string();
+            }
+        });
+        let sheet = self.format == ExportFormat::Sheet;
         theme::field(ui, tr("What to export"), "", |ui| {
             let shown = if self.all_animations { tr("All animations (one file each)").to_string() } else { self.anim.clone().unwrap_or_else(|| tr("Setup pose").to_string()) };
             let before = (self.anim.clone(), self.all_animations);
@@ -132,21 +184,44 @@ impl GifRequest {
                     if let Some(p) = rfd::FileDialog::new().pick_folder() { *target = p.display().to_string(); }
                 } else {
                     let name = Path::new(target.as_str()).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-                    if let Some(p) = rfd::FileDialog::new().add_filter("GIF", &["gif"]).set_file_name(name).save_file() { *target = p.display().to_string(); }
+                    let (filter, extension) = if sheet { ("PNG", "png") } else { ("GIF", "gif") };
+                    if let Some(p) = rfd::FileDialog::new().add_filter(filter, &[extension]).set_file_name(name).save_file() { *target = p.display().to_string(); }
                 }
             }
         });
         let summary = self.summary(app);
         theme::hint(ui, &summary);
+        if sheet {
+            theme::hint(ui, tr("A JSON file with each frame's position and duration is saved next to the PNG."));
+        }
         ui.add_space(6.0);
 
+        if sheet {
+            theme::group(ui, "sheet_layout", tr("Sheet layout"), "", true, |ui| {
+                let mut auto = self.columns == 0;
+                if ui.checkbox(&mut auto, tr("Choose columns automatically")).on_hover_text(tr("Makes the sheet nearly square")).changed() {
+                    self.columns = if auto { 0 } else { 8 };
+                }
+                if !auto {
+                    theme::field(ui, tr("Columns"), tr("Frames per row"), |ui| { ui.add(egui::DragValue::new(&mut self.columns).range(1..=512)); });
+                }
+                theme::field(ui, tr("Padding"), tr("Empty pixels between frames"), |ui| { ui.add(egui::DragValue::new(&mut self.padding).range(0..=64).suffix(" px")); });
+                ui.checkbox(&mut self.sheet_transparent, tr("Transparent background"));
+                if !self.sheet_transparent {
+                    theme::field(ui, tr("Background"), "", |ui| { ui.color_edit_button_srgb(&mut self.opts.background); });
+                }
+            });
+        }
         let o = &mut self.opts;
         theme::group(ui, "gif_timing", tr("Timing"), "", true, |ui| {
-            theme::field(ui, "FPS", tr("Frames per second. 50 is the smoothest a GIF can play."), |ui| { ui.add(egui::DragValue::new(&mut o.fps).range(1.0..=MAX_GIF_FPS).speed(0.5)); });
-            ui.checkbox(&mut o.forever, tr("Loop forever"));
+            let (max_fps, fps_tip) = if sheet { (MAX_SHEET_FPS, tr("Frames per second")) } else { (MAX_GIF_FPS, tr("Frames per second. 50 is the smoothest a GIF can play.")) };
+            theme::field(ui, "FPS", fps_tip, |ui| { ui.add(egui::DragValue::new(&mut o.fps).range(1.0..=max_fps).speed(0.5)); });
             ui.checkbox(&mut o.include_last_frame, tr("Include last frame")).on_hover_text(tr("Leave this off for loops: the last frame repeats the first"));
-            theme::field(ui, tr("Plays"), tr("Times the animation is stored in the file"), |ui| { ui.add(egui::DragValue::new(&mut o.plays).range(1..=100)); });
-            theme::field(ui, tr("Pause after (seconds)"), tr("Holds the last frame of each play"), |ui| { ui.add(egui::DragValue::new(&mut o.pause_after).range(0.0..=60.0).speed(0.05)); });
+            if !sheet {
+                ui.checkbox(&mut o.forever, tr("Loop forever"));
+                theme::field(ui, tr("Plays"), tr("Times the animation is stored in the file"), |ui| { ui.add(egui::DragValue::new(&mut o.plays).range(1..=100)); });
+                theme::field(ui, tr("Pause after (seconds)"), tr("Holds the last frame of each play"), |ui| { ui.add(egui::DragValue::new(&mut o.pause_after).range(0.0..=60.0).speed(0.05)); });
+            }
             theme::field(ui, tr("Warm up (plays)"), tr("Plays simulated first, so physics starts in motion"), |ui| { ui.add(egui::DragValue::new(&mut o.warm_up).range(0..=20)); });
             let mut some = o.range.is_some();
             if ui.checkbox(&mut some, tr("Only some frames")).changed() {
@@ -186,16 +261,18 @@ impl GifRequest {
                 });
             }
         });
-        theme::group(ui, "gif_colors", tr("Colors"), "", true, |ui| {
-            theme::field(ui, tr("Number of colors"), tr("Fewer colors make a smaller file"), |ui| { ui.add(egui::DragValue::new(&mut o.colors).range(2..=256)); });
-            ui.checkbox(&mut o.dither, tr("Dither")).on_hover_text(tr("Smoother gradients, larger file"));
-            theme::field(ui, tr("Quality"), tr("Higher quality has better colors and takes longer"), |ui| { ui.add(egui::Slider::new(&mut o.quality, 1..=10)); });
-            theme::field(ui, tr("Background"), "", |ui| { ui.color_edit_button_srgb(&mut o.background); });
-            ui.checkbox(&mut o.transparent, tr("Transparent background")).on_hover_text(tr("GIF pixels are either solid or see-through, so soft edges mix with the background color"));
-            if o.transparent {
-                theme::field(ui, tr("Alpha threshold"), tr("Pixels fainter than this become transparent"), |ui| { ui.add(egui::Slider::new(&mut o.alpha_threshold, 1..=255)); });
-            }
-        });
+        if !sheet {
+            theme::group(ui, "gif_colors", tr("Colors"), "", true, |ui| {
+                theme::field(ui, tr("Number of colors"), tr("Fewer colors make a smaller file"), |ui| { ui.add(egui::DragValue::new(&mut o.colors).range(2..=256)); });
+                ui.checkbox(&mut o.dither, tr("Dither")).on_hover_text(tr("Smoother gradients, larger file"));
+                theme::field(ui, tr("Quality"), tr("Higher quality has better colors and takes longer"), |ui| { ui.add(egui::Slider::new(&mut o.quality, 1..=10)); });
+                theme::field(ui, tr("Background"), "", |ui| { ui.color_edit_button_srgb(&mut o.background); });
+                ui.checkbox(&mut o.transparent, tr("Transparent background")).on_hover_text(tr("GIF pixels are either solid or see-through, so soft edges mix with the background color"));
+                if o.transparent {
+                    theme::field(ui, tr("Alpha threshold"), tr("Pixels fainter than this become transparent"), |ui| { ui.add(egui::Slider::new(&mut o.alpha_threshold, 1..=255)); });
+                }
+            });
+        }
         theme::group(ui, "gif_show", tr("Show"), "", true, |ui| {
             ui.checkbox(&mut o.bones, tr("Draw bones"));
             ui.checkbox(&mut o.physics, tr("Simulate physics"));
@@ -214,6 +291,10 @@ pub struct RunningExport {
     names: Vec<String>,
     file: usize,
     fraction: f32,
+    format: ExportFormat,
+    done: u32,
+    total: u32,
+    started: std::time::Instant,
 }
 
 /// Replaces the running export, whose thread stops at its next frame.
@@ -223,7 +304,8 @@ pub fn start(app: &mut EditorApp, request: GifRequest) {
     }
     app.settings.gif = request.opts.clone();
     let plan = request.plan(app);
-    let (doc, base, opts) = (app.doc.clone(), app.base_dir(), request.opts.clone());
+    let (doc, base, opts) = (app.doc.clone(), app.base_dir(), request.opts_for_format());
+    let (format, layout) = (request.format, SheetOptions { columns: request.columns, padding: request.padding });
     let batch = request.batch().then(|| PathBuf::from(&request.folder));
     app.last_gif = Some(request);
     let (sender, receiver) = channel();
@@ -237,21 +319,34 @@ pub fn start(app: &mut EditorApp, request: GifRequest) {
             }
             let mut written = Vec::new();
             for (file, (path, job)) in plan.iter().enumerate() {
-                let mut bytes = Vec::new();
-                let stats = render_gif(&doc, &base, job, &opts, &mut bytes, &mut |done, total| {
+                let mut report = |done, total| {
                     let _ = sender.send(Message::Progress { file, done, total });
                     !stop.load(Ordering::Relaxed)
-                })?;
+                };
+                let write = |p: &Path, bytes: &[u8]| std::fs::write(p, bytes).map_err(|e| format!("{}: {e}", p.display()));
                 // Written only when complete, so a failure leaves any older file alone.
-                std::fs::write(path, &bytes).map_err(|e| format!("{}: {e}", path.display()))?;
-                written.push((path.clone(), stats, bytes.len() as u64));
+                match format {
+                    ExportFormat::Gif => {
+                        let mut bytes = Vec::new();
+                        let stats = render_gif(&doc, &base, job, &opts, &mut bytes, &mut report)?;
+                        write(path, &bytes)?;
+                        written.push((path.clone(), stats, bytes.len() as u64));
+                    }
+                    ExportFormat::Sheet => {
+                        let image_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                        let (png, json, stats) = render_sheet(&doc, &base, job, &opts, layout, &image_name, &mut report)?;
+                        write(path, &png)?;
+                        write(&path.with_extension("json"), json.as_bytes())?;
+                        written.push((path.clone(), stats, png.len() as u64));
+                    }
+                }
             }
             Ok(written)
         };
         let result = run();
         let _ = sender.send(Message::Finished(result));
     });
-    app.gif_export = Some(RunningExport { receiver, cancel, names, file: 0, fraction: 0.0 });
+    app.gif_export = Some(RunningExport { receiver, cancel, names, file: 0, fraction: 0.0, format, done: 0, total: 0, started: std::time::Instant::now() });
 }
 
 /// A stable batch progress state for scripted screenshots.
@@ -263,6 +358,10 @@ pub fn preview_progress(app: &mut EditorApp) {
         names: (1..=5).map(|n| format!("animation-{n}.gif")).collect(),
         file: 1,
         fraction: 0.42,
+        format: ExportFormat::Gif,
+        done: 21,
+        total: 50,
+        started: std::time::Instant::now() - std::time::Duration::from_secs(14),
     });
 }
 
@@ -273,13 +372,20 @@ pub fn repeat_last(app: &mut EditorApp) {
     }
 }
 
-fn finished_text(written: &[(PathBuf, GifStats, u64)], folder: Option<&Path>) -> String {
+/// Seconds as "12s" or "1m 05s".
+fn duration_text(seconds: f32) -> String {
+    let s = seconds.max(0.0).round() as u32;
+    if s < 60 { format!("{s}s") } else { format!("{}m {:02}s", s / 60, s % 60) }
+}
+
+fn finished_text(format: ExportFormat, written: &[(PathBuf, GifStats, u64)], folder: Option<&Path>) -> String {
     let missing: Vec<&str> = written.iter().flat_map(|w| w.1.missing_images.iter().map(String::as_str)).collect();
     let text = match written {
         [(path, stats, bytes)] if folder.is_none() => {
             let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
             crate::tf!("Exported {}: {}x{}, {} frames, {} KB", name, stats.width, stats.height, stats.frames, bytes / 1024)
         }
+        _ if format == ExportFormat::Sheet => crate::tf!("Exported {} sprite sheets to {}", written.len(), folder.map(|f| f.display().to_string()).unwrap_or_default()),
         _ => crate::tf!("Exported {} GIF files to {}", written.len(), folder.map(|f| f.display().to_string()).unwrap_or_default()),
     };
     if missing.is_empty() { text } else { format!("{text} · {}", crate::tf!("Images not found: {}", missing.join(", "))) }
@@ -294,6 +400,7 @@ pub fn show_progress(app: &mut EditorApp, ctx: &egui::Context) {
             Message::Progress { file, done, total } => {
                 export.file = file;
                 export.fraction = done as f32 / total.max(1) as f32;
+                (export.done, export.total) = (done, total);
             }
             Message::Finished(result) => finished = Some(result),
         }
@@ -301,14 +408,14 @@ pub fn show_progress(app: &mut EditorApp, ctx: &egui::Context) {
     if let Some(result) = finished {
         let folder = app.last_gif.as_ref().filter(|r| r.batch()).map(|r| PathBuf::from(&r.folder));
         app.status = match result {
-            Ok(written) => finished_text(&written, folder.as_deref()),
-            Err(e) if e == "cancelled" => tr("GIF export cancelled").to_string(),
-            Err(e) => crate::tf!("GIF export failed: {}", e),
+            Ok(written) => finished_text(export.format, &written, folder.as_deref()),
+            Err(e) if e == "cancelled" => tr("Export cancelled").to_string(),
+            Err(e) => crate::tf!("Export failed: {}", e),
         };
         app.gif_export = None;
         return;
     }
-    egui::Window::new(tr("Exporting GIF"))
+    egui::Window::new(tr(export.format.running()))
         .id(egui::Id::unique("gif_progress"))
         .title_bar(false)
         .frame(theme::popup_frame())
@@ -318,25 +425,63 @@ pub fn show_progress(app: &mut EditorApp, ctx: &egui::Context) {
         .max_width(theme::TOAST_W - theme::DIALOG_GAP * 2.0)
         .anchor(egui::Align2::RIGHT_TOP, egui::vec2(-theme::DIALOG_GAP, 96.0))
         .show(ctx, |ui| {
-            ui.set_min_width(260.0);
+            let width = theme::TOAST_W - theme::DIALOG_GAP * 2.0;
+            ui.set_width(width);
+            let files = export.names.len().max(1);
+            // Across every file of a batch, so the bar never jumps back.
+            let overall = ((export.file as f32 + export.fraction.clamp(0.0, 1.0)) / files as f32).clamp(0.0, 1.0);
             let name = export.names.get(export.file).map(String::as_str).unwrap_or_default();
-            theme::dialog_title(ui, tr("Exporting GIF"), name);
-            if export.names.len() > 1 {
-                ui.label(egui::RichText::new(crate::tf!("File {} of {}", export.file + 1, export.names.len())).color(theme::TEXT_DIM));
+
+            ui.horizontal(|ui| {
+                let (tile, _) = ui.allocate_exact_size(egui::vec2(36.0, 36.0), egui::Sense::hover());
+                ui.painter().rect_filled(tile, 8.0, theme::ACCENT.gamma_multiply(0.18));
+                crate::icons::image(crate::icons::Icon::Export, 20.0).tint(theme::ACCENT).paint_at(ui, egui::Rect::from_center_size(tile.center(), egui::vec2(20.0, 20.0)));
+                let text_width = (ui.available_width() - 56.0).max(40.0);
+                ui.vertical(|ui| {
+                    ui.set_width(text_width);
+                    ui.spacing_mut().item_spacing.y = 2.0;
+                    ui.add(egui::Label::new(egui::RichText::new(tr(export.format.running())).strong().size(theme::SIZE_BODY).color(egui::Color32::WHITE)).truncate());
+                    ui.add(egui::Label::new(egui::RichText::new(name).size(theme::SIZE_SMALL).color(theme::TEXT_DIM)).truncate());
+                });
+                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), 36.0), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new(format!("{:.0}%", overall * 100.0)).strong().size(theme::SIZE_HEADING).color(theme::ACCENT));
+                });
+            });
+            ui.add_space(10.0);
+
+            let (bar, _) = ui.allocate_exact_size(egui::vec2(width, 6.0), egui::Sense::hover());
+            ui.painter().rect_filled(bar, 3.0, theme::HEADER_BG);
+            if overall > 0.0 {
+                let filled = egui::Rect::from_min_size(bar.min, egui::vec2((bar.width() * overall).max(bar.height()), bar.height()));
+                ui.painter().rect_filled(filled, 3.0, theme::ACCENT);
             }
-            ui.label(egui::RichText::new(format!("{:.0}%", export.fraction * 100.0)).strong().color(theme::ACCENT));
-            let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), 18.0), egui::Sense::hover());
-            ui.painter().rect_filled(bar, 6.0, theme::HEADER_BG);
-            let filled = egui::Rect::from_min_size(bar.min, egui::vec2(bar.width() * export.fraction.clamp(0.0, 1.0), bar.height()));
-            ui.painter().rect_filled(filled, 6.0, theme::ACCENT);
-            ui.add_space(theme::DIALOG_GAP);
+            ui.add_space(8.0);
+
+            let elapsed = export.started.elapsed().as_secs_f32();
+            let mut left = Vec::new();
+            if files > 1 {
+                left.push(crate::tf!("File {} of {}", export.file + 1, files));
+            }
+            if export.total > 0 {
+                left.push(crate::tf!("Step {} of {}", export.done, export.total));
+            }
             let cancelling = export.cancel.load(Ordering::Relaxed);
-            if cancelling {
-                ui.label(egui::RichText::new(tr("Cancelling...")).color(theme::TEXT_DIM));
-            }
-            if ui.add_enabled(!cancelling, theme::dialog_button(tr("Cancel"), theme::Emphasis::Plain)).clicked() {
-                export.cancel.store(true, Ordering::Relaxed);
-            }
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new(left.join("  ·  ")).size(theme::SIZE_SMALL).color(theme::TEXT_DIM));
+                // Too early a guess only misleads.
+                let time = if overall > 0.05 { crate::tf!("About {} left", duration_text(elapsed / overall * (1.0 - overall))) } else { duration_text(elapsed) };
+                let galley = ui.painter().layout_no_wrap(time, egui::FontId::proportional(theme::SIZE_SMALL), theme::TEXT_DIM);
+                let (rect, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), galley.size().y), egui::Sense::hover());
+                ui.painter().galley(egui::pos2(rect.right() - galley.size().x, rect.top()), galley, theme::TEXT_DIM);
+            });
+            ui.add_space(8.0);
+            // A sized row: a bare right-to-left layout would take the window's whole height.
+            ui.allocate_ui_with_layout(egui::vec2(width, theme::MIN_CLICK_H), egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let label = if cancelling { tr("Cancelling...") } else { tr("Cancel") };
+                if ui.add_enabled(!cancelling, crate::icons::labeled(crate::icons::Icon::Close, label)).clicked() {
+                    export.cancel.store(true, Ordering::Relaxed);
+                }
+            });
         });
     ctx.request_repaint_after(std::time::Duration::from_millis(50));
 }
@@ -345,6 +490,35 @@ pub fn show_progress(app: &mut EditorApp, ctx: &egui::Context) {
 mod tests {
     use super::*;
     use skel2d_core::{apply, parse_ops};
+
+    #[test]
+    fn a_sheet_export_writes_png_and_json_and_keeps_the_gif_settings() {
+        let dir = std::env::temp_dir().join(format!("skel2d-editor-sheet-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let ops = parse_ops(r#"[{"op":"add_slot","name":"s","bone":"root","attachment":"r","attachments":[{"type":"region","name":"r","width":40,"height":20}]},
+            {"op":"key_bone","animation":"spin","bone":"root","time":0,"rotate":0},
+            {"op":"key_bone","animation":"spin","bone":"root","time":1,"rotate":360}]"#).unwrap();
+        let mut app = EditorApp::test_app(apply(&Document::with_root("t"), &ops).unwrap(), dir.join("t.skel.json"));
+        app.playback.anim = Some("spin".to_string());
+        let mut request = GifRequest::new(&app);
+        request.format = ExportFormat::Sheet;
+        request.file = dir.join("t-spin.png").display().to_string();
+        request.opts.fps = 60.0;
+        assert_eq!(request.frame_count(&app), 60, "above what a GIF could play");
+        request.opts.fps = 4.0;
+        let transparent_gif = request.opts.transparent;
+        start(&mut app, request);
+        assert_eq!(app.settings.gif.transparent, transparent_gif, "the sheet's alpha choice stays out of the GIF settings");
+        let export = app.gif_export.take().unwrap();
+        let written = loop {
+            if let Message::Finished(result) = export.receiver.recv().unwrap() { break result.unwrap(); }
+        };
+        assert_eq!(written[0].1.frames, 4);
+        assert!(tiny_skia::Pixmap::load_png(dir.join("t-spin.png")).is_ok());
+        let json: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("t-spin.json")).unwrap()).unwrap();
+        assert_eq!(json["frames"].as_array().unwrap().len(), 4);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn background_export_writes_the_file_and_reports_it() {

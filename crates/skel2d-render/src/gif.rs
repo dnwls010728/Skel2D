@@ -143,9 +143,13 @@ struct FramePlan {
 }
 
 fn frame_plan(doc: &Document, job: &GifJob, opts: &GifOptions) -> FramePlan {
+    frame_plan_up_to(doc, job, opts, MAX_GIF_FPS)
+}
+
+fn frame_plan_up_to(doc: &Document, job: &GifJob, opts: &GifOptions, max_fps: f32) -> FramePlan {
     let main = job.anim.as_ref().and_then(|n| doc.animations.get(n)).map(|a| a.duration());
     let span = main.unwrap_or_else(|| job.layers.iter().filter(|l| l.enabled && l.alpha > 0.0).filter_map(|l| doc.animations.get(&l.anim)).map(|a| a.duration()).fold(0.0, f32::max));
-    let fps = opts.fps.clamp(0.1, MAX_GIF_FPS);
+    let fps = opts.fps.clamp(0.1, max_fps);
     let plays = opts.plays.max(1);
     let per_play = (span * fps).round() as u32;
     if per_play == 0 {
@@ -407,6 +411,106 @@ fn changed_rect(a: &[u8], b: &[u8], width: usize) -> Option<(usize, usize, usize
     (top != usize::MAX).then(|| (left, top, right - left + 1, bottom - top + 1))
 }
 
+/// Highest frame rate of a sprite sheet: its timing is not tied to GIF delays.
+pub const MAX_SHEET_FPS: f32 = 120.0;
+/// Longest side of a sheet; larger textures fail on many GPUs.
+const MAX_SHEET_SIZE: u32 = 16384;
+
+/// How frames are laid out on a sprite sheet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SheetOptions {
+    /// Frames per row; 0 picks a nearly square sheet.
+    pub columns: u32,
+    /// Empty pixels between frames.
+    pub padding: u32,
+}
+
+/// One play of the animation: a sheet holds each frame once.
+fn sheet_opts(opts: &GifOptions) -> GifOptions {
+    GifOptions { plays: 1, pause_after: 0.0, ..opts.clone() }
+}
+
+pub fn sheet_frame_count(doc: &Document, job: &GifJob, opts: &GifOptions) -> u32 {
+    frame_plan_up_to(doc, job, &sheet_opts(opts), MAX_SHEET_FPS).times.len() as u32
+}
+
+/// The job as one PNG holding every frame, plus a JSON description in the
+/// widely read `frames` array form (position, size and duration of each frame).
+/// `image_name` is the PNG's file name as the JSON refers to it.
+/// `progress(done, total)` returning false cancels.
+pub fn render_sheet(doc: &Document, base_dir: &Path, job: &GifJob, opts: &GifOptions, sheet: SheetOptions, image_name: &str, progress: &mut dyn FnMut(u32, u32) -> bool) -> Result<(Vec<u8>, String, GifStats), String> {
+    if let Some(name) = &job.anim && !doc.animations.contains_key(name) {
+        return Err(format!("animation {name:?} does not exist"));
+    }
+    if let Some(s) = job.skins.iter().find(|s| doc.skin(s).is_none()) {
+        return Err(format!("skin {s:?} does not exist"));
+    }
+    if opts.fps <= 0.0 || opts.fps > MAX_SHEET_FPS || opts.fps.is_nan() {
+        return Err(format!("fps must be above 0 and at most {MAX_SHEET_FPS}"));
+    }
+    let opts = sheet_opts(opts);
+    let plan = frame_plan_up_to(doc, job, &opts, MAX_SHEET_FPS);
+    if plan.times.is_empty() {
+        return Err("the frame range holds no frames".to_string());
+    }
+    let poses = poses(doc, job, &opts, &plan);
+    let mut renderer = Renderer::new(base_dir);
+    let view = camera(&renderer, doc, &poses, &opts)?;
+    let count = poses.len() as u32;
+    let columns = if sheet.columns == 0 { (f64::from(count).sqrt().ceil() as u32).max(1) } else { sheet.columns.min(count) };
+    let rows = count.div_ceil(columns);
+    let side = |n: u32, cell: u32| u64::from(n) * u64::from(cell) + u64::from(n - 1) * u64::from(sheet.padding);
+    let (width, height) = (side(columns, view.width), side(rows, view.height));
+    if width > u64::from(MAX_SHEET_SIZE) || height > u64::from(MAX_SHEET_SIZE) {
+        return Err(format!("sheet would be {width}x{height} pixels, the limit is {MAX_SHEET_SIZE}: lower the scale, the frame rate or change the columns"));
+    }
+    let mut image = Pixmap::new(width as u32, height as u32).ok_or("the sheet is empty")?;
+    let [r, g, b, a] = view.background;
+    image.fill(tiny_skia::Color::from_rgba8(r, g, b, a));
+    let name = std::path::Path::new(image_name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let ms = |i: u32| (f64::from(i) * 1000.0 / f64::from(opts.fps)).round() as i64;
+    let mut frames = Vec::with_capacity(poses.len());
+    for (i, pose) in poses.iter().enumerate() {
+        let frame = renderer.render(doc, pose, &view, None);
+        let (col, row) = (i as u32 % columns, i as u32 / columns);
+        let (x, y) = (col * (view.width + sheet.padding), row * (view.height + sheet.padding));
+        image.draw_pixmap(x as i32, y as i32, frame.as_ref(), &tiny_skia::PixmapPaint { blend_mode: tiny_skia::BlendMode::Source, ..Default::default() }, tiny_skia::Transform::identity(), None);
+        frames.push(serde_json::json!({
+            "filename": format!("{name}_{i:03}"),
+            "frame": { "x": x, "y": y, "w": view.width, "h": view.height },
+            "duration": ms(i as u32 + 1) - ms(i as u32),
+        }));
+        if !progress(i as u32 + 1, count + 1) {
+            return Err("cancelled".to_string());
+        }
+    }
+    let png = image.encode_png().map_err(|e| e.to_string())?;
+    let json = serde_json::json!({
+        "frames": frames,
+        "meta": {
+            "app": "Skel2D",
+            "image": image_name,
+            "format": "RGBA8888",
+            "size": { "w": width, "h": height },
+            "scale": "1",
+            "fps": opts.fps,
+            "columns": columns,
+            "rows": rows,
+            "padding": sheet.padding,
+        },
+    });
+    let json = serde_json::to_string_pretty(&json).map_err(|e| e.to_string())? + "\n";
+    progress(count + 1, count + 1);
+    Ok((png, json, GifStats {
+        width: width as u32,
+        height: height as u32,
+        frames: count,
+        seconds: ms(count) as f32 / 1000.0,
+        colors: 0,
+        missing_images: renderer.missing_images,
+    }))
+}
+
 /// Writes the job as a GIF. `progress(done, total)` returning false cancels.
 pub fn render_gif(doc: &Document, base_dir: &Path, job: &GifJob, opts: &GifOptions, out: &mut impl Write, progress: &mut dyn FnMut(u32, u32) -> bool) -> Result<GifStats, String> {
     if let Some(name) = &job.anim && !doc.animations.contains_key(name) {
@@ -555,6 +659,35 @@ mod tests {
             frames.push((f.delay, f.buffer.to_vec(), f.dispose));
         }
         frames
+    }
+
+    #[test]
+    fn a_sheet_lays_frames_out_and_describes_them() {
+        let ops = skel2d_core::parse_ops(r#"[{"op":"add_bone","name":"root"},
+            {"op":"add_slot","name":"s","bone":"root","color":"ff0000","attachment":"r","attachments":[{"type":"region","name":"r","width":40,"height":20}]},
+            {"op":"key_bone","animation":"spin","bone":"root","time":0,"rotate":0},
+            {"op":"key_bone","animation":"spin","bone":"root","time":1,"rotate":180}]"#).unwrap();
+        let doc = skel2d_core::apply(&Document::new("t"), &ops).unwrap();
+        let job = GifJob { anim: Some("spin".into()), layers: vec![], skins: vec![] };
+        let opts = GifOptions { fps: 60.0, transparent: true, plays: 3, pause_after: 2.0, range: Some([0, 4]), ..GifOptions::default() };
+        assert_eq!(sheet_frame_count(&doc, &job, &opts), 5, "one play, and above the GIF rate limit");
+        let sheet = SheetOptions { columns: 2, padding: 3 };
+        let mut calls = 0;
+        let (png, json, stats) = render_sheet(&doc, Path::new("."), &job, &opts, sheet, "spin.png", &mut |_, _| { calls += 1; true }).unwrap();
+        assert_eq!(calls, 6);
+        let image = Pixmap::decode_png(&png).unwrap();
+        assert_eq!((image.width(), image.height(), stats.frames), (stats.width, stats.height, 5));
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let frames = v["frames"].as_array().unwrap();
+        assert_eq!(frames.len(), 5);
+        let (w, h) = (frames[0]["frame"]["w"].as_u64().unwrap(), frames[0]["frame"]["h"].as_u64().unwrap());
+        assert_eq!((frames[1]["frame"]["x"].as_u64().unwrap(), frames[2]["frame"]["y"].as_u64().unwrap()), (w + 3, h + 3));
+        assert_eq!((u64::from(stats.width), u64::from(stats.height)), (w * 2 + 3, h * 3 + 6));
+        assert_eq!(v["meta"]["image"], "spin.png");
+        let total: i64 = frames.iter().map(|f| f["duration"].as_i64().unwrap()).sum();
+        assert_eq!(total, 83, "five frames at 60 fps");
+        assert_eq!(image.pixel(w as u32 + 1, 0).unwrap().alpha(), 0, "the gap stays transparent");
+        assert!(render_sheet(&doc, Path::new("."), &job, &opts, sheet, "x.png", &mut |_, _| false).is_err(), "progress can cancel");
     }
 
     #[test]

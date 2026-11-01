@@ -232,6 +232,7 @@ pub fn rig_layers(layers: &[LayerInput], canvas: Option<[u32; 2]>, spec: &RigSpe
                 bone: if use_mesh { first_bone.clone() } else { rigid_bone },
                 color: Default::default(),
                 blend: Default::default(),
+                clip: None,
                 attachment: (!layer.hidden).then(|| layer.attachment.clone()),
                 attachments,
             },

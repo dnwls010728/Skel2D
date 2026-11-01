@@ -12,6 +12,8 @@ pub static KO: &[(&str, &str)] = &[
     ("Drag to scale uniformly", "드래그하여 균등 스케일"),
     ("Drag to scale along local X", "드래그하여 로컬 X축 스케일"),
     ("Drag to scale along local Y", "드래그하여 로컬 Y축 스케일"),
+    ("Drag to shear the local X axis", "드래그하여 로컬 X축 셰어"),
+    ("Drag to shear the local Y axis", "드래그하여 로컬 Y축 셰어"),
     ("{} · Shift fine · Ctrl snap toggle", "{} · Shift 미세 조정 · Ctrl 스냅 전환"),
     // overlay labels
     ("x {}  y {}   zoom {}", "x {}  y {}   확대 {}"),
@@ -33,6 +35,7 @@ pub static KO: &[(&str, &str)] = &[
     ("rotate", "회전"),
     ("move", "이동"),
     ("scale", "스케일"),
+    ("shear", "셰어"),
     ("click to select", "클릭하여 선택"),
     ("drag to {}", "드래그하여 {}"),
     (" · Alt+click cycle ({} here)", " · Alt+클릭으로 순환 (여기 {}개)"),
@@ -51,7 +54,7 @@ pub static KO: &[(&str, &str)] = &[
     ("a new root", "새 루트"),
     ("a child of {}", "{}의 자식"),
     ("Drawing {} · Ctrl toggles snapping · release to create", "{} 그리는 중 · Ctrl로 스냅 전환 · 놓으면 생성"),
-    ("Drag to draw a child of {} (start at its tip to chain) · click a bone to pick the parent · click empty space for a root", "드래그하여 {}의 자식 본 그리기 (끝점에서 시작하면 이어짐) · 본 클릭으로 부모 선택 · 빈 곳 클릭으로 루트"),
+    ("Drag to draw a child of {} (start at its tip to chain) · Alt+drag draws it again · click a bone to pick the parent · click empty space for a root", "드래그하여 {}의 자식 본 그리기 (끝점에서 시작하면 이어짐) · Alt+드래그로 다시 그리기 · 본 클릭으로 부모 선택 · 빈 곳 클릭으로 루트"),
     ("Drag to draw a root bone · click a bone to draw children of it", "드래그하여 루트 본 그리기 · 본을 클릭하면 그 자식을 그림"),
     // mesh tool
     ("Cannot remove this vertex: the mesh must keep a triangle, and the vertex must not join separate parts", "이 정점을 제거할 수 없습니다: 메쉬에 삼각형이 남아야 하고 분리된 부분을 잇는 정점이면 안 됩니다"),

@@ -90,16 +90,23 @@ pub fn step_bar(app: &mut EditorApp, ui: &mut egui::Ui) {
         for step in Step::ALL {
             let on = app.step == step;
             let label = format!("{}  {}", step.number(), tr(step.label()));
-            if step_button(ui, &label, on, step == Step::Animate).on_hover_text(tr(step_tip(step))).clicked() && !on {
+            let icon = match step {
+                Step::Bones => Icon::Bone,
+                Step::Images => Icon::Image,
+                Step::Mesh => Icon::Mesh,
+                Step::Weights => Icon::Weights,
+                Step::Animate => Icon::Animation,
+            };
+            if step_button(ui, icon, &label, on, step == Step::Animate).on_hover_text(tr(step_tip(step))).clicked() && !on {
                 app.set_step(step);
             }
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let redo = egui::Button::new(format!("{}  Ctrl+Shift+Z", tr("Redo"))).min_size(egui::vec2(0.0, theme::MIN_CLICK_H));
+            let redo = crate::icons::labeled(Icon::Redo, format!("{}  Ctrl+Shift+Z", tr("Redo"))).min_size(egui::vec2(0.0, theme::MIN_CLICK_H));
             if ui.add_enabled(app.can_redo(), redo).clicked() {
                 app.redo();
             }
-            let undo = egui::Button::new(format!("{}  Ctrl+Z", tr("Undo"))).min_size(egui::vec2(0.0, theme::MIN_CLICK_H));
+            let undo = crate::icons::labeled(Icon::Undo, format!("{}  Ctrl+Z", tr("Undo"))).min_size(egui::vec2(0.0, theme::MIN_CLICK_H));
             if ui.add_enabled(app.can_undo(), undo).clicked() {
                 app.undo();
             }
@@ -108,9 +115,9 @@ pub fn step_bar(app: &mut EditorApp, ui: &mut egui::Ui) {
     ui.add_space(4.0);
 }
 
-fn step_button(ui: &mut egui::Ui, label: &str, on: bool, animate: bool) -> egui::Response {
+fn step_button(ui: &mut egui::Ui, icon: Icon, label: &str, on: bool, animate: bool) -> egui::Response {
     let galley = ui.painter().layout_no_wrap(label.to_string(), egui::FontId::proportional(theme::SIZE_HEADING), Color32::WHITE);
-    let size = egui::vec2((galley.size().x + 32.0).max(112.0), theme::STEP_BTN_H);
+    let size = egui::vec2((galley.size().x + 56.0).max(124.0), theme::STEP_BTN_H);
     let (rect, r) = ui.allocate_exact_size(size, egui::Sense::click());
     let active = if animate { theme::ANIMATE } else { theme::STEP_ACTIVE };
     let (fill, fg) = if on {
@@ -129,7 +136,10 @@ fn step_button(ui: &mut egui::Ui, label: &str, on: bool, animate: bool) -> egui:
         p.rect_stroke(rect.expand(1.0), 6.0, egui::Stroke::new(2.0, Color32::WHITE), egui::StrokeKind::Outside);
     }
     let galley = p.layout_no_wrap(label.to_string(), egui::FontId::proportional(theme::SIZE_HEADING), fg);
-    p.galley(rect.center() - galley.size() / 2.0, galley, fg);
+    // Icon and label centered together.
+    let left = rect.center().x - (galley.size().x + 24.0) / 2.0;
+    p.galley(egui::pos2(left + 24.0, rect.center().y - galley.size().y / 2.0), galley, fg);
+    crate::icons::image(icon, 18.0).tint(fg).paint_at(ui, egui::Rect::from_center_size(egui::pos2(left + 9.0, rect.center().y), egui::vec2(18.0, 18.0)));
     r
 }
 
@@ -192,16 +202,18 @@ fn tool_values(app: &mut EditorApp, ui: &mut egui::Ui) {
         Tool::Rotate => (KeyProp::Rotate, "Rotate", "rotate"),
         Tool::Translate => (KeyProp::Translate, "Move", "translate"),
         Tool::Scale => (KeyProp::Scale, "Scale", "scale"),
+        Tool::Shear => (KeyProp::Shear, "Shear", "shear"),
         _ => return,
     };
     let t = app.playback.time;
-    let (rot, trans, scale) = {
+    let (rot, trans, scale, shear) = {
         let doc = app.shown_doc();
         let tl = doc.animations.get(&anim).and_then(|a| a.bones.get(&bone));
         (
             tl.and_then(|tl| skel2d_core::pose::sample(&tl.rotate, t)).unwrap_or(0.0),
             tl.and_then(|tl| skel2d_core::pose::sample(&tl.translate, t)).unwrap_or([0.0, 0.0]),
             tl.and_then(|tl| skel2d_core::pose::sample(&tl.scale, t)).unwrap_or([1.0, 1.0]),
+            tl.and_then(|tl| skel2d_core::pose::sample(&tl.shear, t)).unwrap_or([0.0, 0.0]),
         )
     };
     let row = KeyRow::BoneProp(bone.clone(), prop);
@@ -248,7 +260,19 @@ fn tool_values(app: &mut EditorApp, ui: &mut egui::Ui) {
                 changed = false;
             }
         }
-        KeyProp::Shear => {}
+        KeyProp::Shear => {
+            let mut v = shear;
+            ui.horizontal(|ui| {
+                for (i, axis) in ["x", "y"].into_iter().enumerate() {
+                    changed |= ui.add(egui::DragValue::new(&mut v[i]).speed(0.5).max_decimals(1).suffix("°").prefix(format!("{axis} "))).on_hover_text(tr("Shear offset in degrees")).changed();
+                }
+            });
+            if changed && v.iter().all(|x| x.is_finite()) {
+                op.shear = Some(v);
+            } else {
+                changed = false;
+            }
+        }
     }
     if changed {
         app.edit_coalesced(format!("animkey:{anim}:{bone}:{field}:{}", (t * 10_000.0).round() as i64), vec![Op::KeyBone(op)]);
@@ -353,7 +377,7 @@ fn list_header(app: &mut EditorApp, ui: &mut egui::Ui) {
             if big_button(ui, Some(Icon::Bone), &label, true, "") {
                 add_bone_under_selection(app);
             }
-            note(ui, tr("Root is locked: every bone hangs under it. You can also draw bones in the viewport."));
+            note(ui, tr("Every bone hangs under root. You can also draw bones in the viewport."));
         }
         Step::Images => {
             if big_button(ui, Some(Icon::Image), tr("Load images"), true, "") {
@@ -760,6 +784,51 @@ fn images_panel(app: &mut EditorApp, ui: &mut egui::Ui) {
 
 /// The slot panel of step 2: its images as cards, the picked image's values,
 /// then the slot's own settings.
+/// Clipping at the top of the slot panel: says the slot's state in words, with
+/// the one action that fits it. The same actions are on the slot's right-click
+/// menu, on Ctrl+Alt+G and in command search.
+fn clip_section(app: &mut EditorApp, ui: &mut egui::Ui, slot: &Slot) {
+    let name = slot.name.clone();
+    ui.add_space(4.0);
+    theme::section(ui, tr("Clipping"));
+    if let Some(base) = slot.clip.clone() {
+        ui.horizontal(|ui| {
+            ui.add(crate::icons::image(Icon::Clip, 16.0).tint(theme::SLOT));
+            ui.label(crate::tf!("Shows only inside {}", base));
+        });
+        if ui.add(crate::icons::labeled(Icon::Close, tr("Remove clip"))).on_hover_text("Ctrl+Alt+G").clicked() {
+            super::set_clip(app, &name, None);
+        }
+        return;
+    }
+    let clipped: Vec<String> = app.doc.slots.iter().filter(|s| s.clip.as_deref() == Some(name.as_str())).map(|s| s.name.clone()).collect();
+    if !clipped.is_empty() {
+        note(ui, &crate::tf!("Clipping {}. Those slots show only inside this one.", clipped.join(", ")));
+        return;
+    }
+    let below = super::clip_below_target(&app.doc, &name);
+    match below {
+        Some(base) => {
+            if ui.add(crate::icons::labeled(Icon::Clip, crate::tf!("Clip to {}", base))).on_hover_text(format!("{} · Ctrl+Alt+G", tr("Show this slot only inside the slot behind it, like a Photoshop clipping layer. Both keep moving on their own."))).clicked() {
+                super::set_clip(app, &name, Some(base));
+            }
+        }
+        None => note(ui, tr("There is no slot behind this one to clip to")),
+    }
+    let mut clip = None;
+    egui::ComboBox::from_id_salt("slot_clip").selected_text(tr("Clip to another slot")).show_ui(ui, |ui| {
+        for s in app.doc.slots.iter().rev().filter(|s| s.name != name && s.clip.is_none()) {
+            if ui.selectable_label(false, &s.name).clicked() {
+                clip = Some(s.name.clone());
+            }
+        }
+    });
+    if clip.is_some() {
+        super::set_clip(app, &name, clip);
+    }
+    ui.add_space(4.0);
+}
+
 fn slot_panel(app: &mut EditorApp, ui: &mut egui::Ui, slot: &Slot) {
     let name = slot.name.clone();
     let index = app.doc.slot_index(&name).unwrap_or_default();
@@ -770,6 +839,7 @@ fn slot_panel(app: &mut EditorApp, ui: &mut egui::Ui, slot: &Slot) {
         app.selection.slot = Some(new);
         return;
     }
+    clip_section(app, ui, slot);
     theme::section(ui, &crate::tf!("Images in this slot ({})", slot.attachments.len()));
     note(ui, tr("A slot shows one image at a time. Add more images for other looks, like eyes open and closed or mouth shapes."));
     ui.add_space(4.0);
@@ -946,7 +1016,7 @@ fn outfits_group(app: &mut EditorApp, ui: &mut egui::Ui) {
                         crate::dialogs::rename(app, crate::dialogs::Item::Skin(skin.clone()));
                         ui.close();
                     }
-                    if ui.button(tr("Duplicate")).clicked() {
+                    if ui.add(crate::icons::labeled(Icon::Duplicate, tr("Duplicate"))).clicked() {
                         if let Some(s) = app.doc.skin(&skin).cloned() {
                             duplicate_skin(app, &s);
                         }
@@ -1398,7 +1468,7 @@ pub(crate) mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         png(&dir, "open.png", 8, 6);
-        let slot = |name: &str, shown: &str, atts: Vec<Attachment>| Slot { name: name.into(), bone: "arm".into(), color: Color::WHITE, blend: Default::default(), attachment: Some(shown.to_string()), attachments: atts };
+        let slot = |name: &str, shown: &str, atts: Vec<Attachment>| Slot { name: name.into(), bone: "arm".into(), color: Color::WHITE, blend: Default::default(), clip: None, attachment: Some(shown.to_string()), attachments: atts };
         let doc = skel2d_core::apply(&Document::with_root("t"), &[
             Op::AddBone({ let mut b = Bone::new("arm"); b.parent = Some("root".into()); b.length = 30.0; b }),
             Op::AddSlot { slot: slot("eye", "open", vec![region("open", "open.png")]), index: None },
@@ -1566,7 +1636,7 @@ pub(crate) mod tests {
         assert!(!t.iter().any(|s| s == tr("Add some bones first (step 1): weights need more than one bone.")));
         // With the root only, the main weights button is off and says what to do.
         let mut solo = EditorApp::test_app(Document::with_root("solo"), std::env::temp_dir().join("skel2d_solo.skel.json"));
-        solo.edit(vec![Op::AddSlot { slot: Slot { name: "m".into(), bone: "root".into(), color: Color::WHITE, blend: Default::default(), attachment: Some("m".into()), attachments: vec![mesh("m")] }, index: None }]);
+        solo.edit(vec![Op::AddSlot { slot: Slot { name: "m".into(), bone: "root".into(), color: Color::WHITE, blend: Default::default(), clip: None, attachment: Some("m".into()), attachments: vec![mesh("m")] }, index: None }]);
         solo.set_step(Step::Weights);
         solo.selection.slot = Some("m".into());
         let out = frames(&mut solo, 2, |app, ui| weights_step_panel(app, ui));

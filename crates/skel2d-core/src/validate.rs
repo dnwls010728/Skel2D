@@ -111,6 +111,14 @@ pub fn validate(doc: &Document) -> Vec<Issue> {
                 Attachment::LinkedMesh(l) => check_linked(&mut issue, doc, &slot.name, &format!("{p}.attachments[{}]", l.name), l),
             }
         }
+        if let Some(base) = &slot.clip {
+            match doc.slot(base) {
+                None => issue(format!("{p}.clip"), format!("slot {base:?} does not exist")),
+                Some(_) if base == &slot.name => issue(format!("{p}.clip"), "a slot cannot clip to itself".into()),
+                Some(target) if target.clip.is_some() => issue(format!("{p}.clip"), format!("slot {base:?} is clipped itself")),
+                Some(_) => {}
+            }
+        }
         if let Some(a) = &slot.attachment
             && !names.contains(a.as_str()) && !crate::ops::slot_has_attachment(doc, &slot.name, a) {
                 issue(format!("{p}.attachment"), format!("attachment {a:?} does not exist in this slot"));

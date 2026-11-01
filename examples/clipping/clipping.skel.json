@@ -1,0 +1,98 @@
+{
+  "format": "skel2d/1",
+  "name": "clipping",
+  "bones": [
+    {"name":"root"},
+    {"name":"liquid","parent":"root","y":-45.0,"length":80.0,"color":"#c04dff"},
+    {"name":"shine","parent":"root","x":-340.0,"y":-40.0,"rotation":90.0,"length":80.0,"color":"#ffffff"}
+  ],
+  "slots": [
+    {
+      "name": "bottle",
+      "bone": "root",
+      "attachment": "bottle",
+      "attachments": [
+        {"type":"region","name":"bottle","image":"bottle.png","width":512.0,"height":640.0}
+      ]
+    },
+    {
+      "name": "liquid",
+      "bone": "liquid",
+      "blend": "multiply",
+      "clip": "bottle",
+      "attachment": "liquid",
+      "attachments": [
+        {"type":"region","name":"liquid","image":"liquid.png","scale_y":1.6,"width":700.0,"height":400.0}
+      ]
+    },
+    {
+      "name": "shine",
+      "bone": "shine",
+      "blend": "screen",
+      "clip": "bottle",
+      "color": "#ffffffcc",
+      "attachment": "shine",
+      "attachments": [
+        {"type":"region","name":"shine","image":"shine.png","rotation":-110.0,"width":160.0,"height":800.0}
+      ]
+    }
+  ],
+  "animations": {
+    "slosh": {
+      "bones": {
+        "liquid": {
+          "rotate": [
+            {"time":0.0,"value":0.0,"curve":"ease_in_out"},
+            {"time":0.5,"value":-11.0,"curve":"ease_in_out"},
+            {"time":1.5,"value":11.0,"curve":"ease_in_out"},
+            {"time":2.0,"value":0.0}
+          ],
+          "translate": [
+            {"time":0.0,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":0.5,"value":[-55.0,14.0],"curve":"ease_in_out"},
+            {"time":1.0,"value":[0.0,-12.0],"curve":"ease_in_out"},
+            {"time":1.5,"value":[55.0,14.0],"curve":"ease_in_out"},
+            {"time":2.0,"value":[0.0,0.0]}
+          ]
+        }
+      }
+    },
+    "shine": {
+      "bones": {
+        "shine": {
+          "translate": [
+            {"time":0.0,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":1.2,"value":[680.0,0.0]},
+            {"time":2.0,"value":[680.0,0.0]}
+          ]
+        }
+      }
+    },
+    "idle": {
+      "bones": {
+        "liquid": {
+          "rotate": [
+            {"time":0.0,"value":0.0,"curve":"ease_in_out"},
+            {"time":0.5,"value":-11.0,"curve":"ease_in_out"},
+            {"time":1.5,"value":11.0,"curve":"ease_in_out"},
+            {"time":2.0,"value":0.0}
+          ],
+          "translate": [
+            {"time":0.0,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":0.5,"value":[-55.0,14.0],"curve":"ease_in_out"},
+            {"time":1.0,"value":[0.0,-12.0],"curve":"ease_in_out"},
+            {"time":1.5,"value":[55.0,14.0],"curve":"ease_in_out"},
+            {"time":2.0,"value":[0.0,0.0]}
+          ]
+        },
+        "shine": {
+          "translate": [
+            {"time":0.0,"value":[0.0,0.0],"curve":"ease_in_out"},
+            {"time":1.2,"value":[680.0,0.0]},
+            {"time":2.0,"value":[680.0,0.0]}
+          ]
+        }
+      }
+    }
+  }
+}

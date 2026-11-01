@@ -1,6 +1,8 @@
 /target
 *.png
 !examples/rig/character.png
+!crates/skel2d-editor/assets/**/*.png
+!examples/clipping/*.png
 *.tmp~
 /output
 /dist

@@ -105,13 +105,14 @@ enum Handle {
     Ring,
     Move(Axis),
     Scale(Axis),
+    Shear(Axis),
 }
 
 impl Handle {
     fn axis(self) -> Axis {
         match self {
             Handle::Ring => Axis::Free,
-            Handle::Move(a) | Handle::Scale(a) => a,
+            Handle::Move(a) | Handle::Scale(a) | Handle::Shear(a) => a,
         }
     }
 }
@@ -119,6 +120,8 @@ impl Handle {
 /// An in-progress manipulation of one bone. Ops are recomputed from `base`
 /// every frame, so the drag never accumulates rounding errors.
 pub struct Drag {
+    /// Alt+move in the setup pose: children and images keep their place.
+    reseat: bool,
     base: Document,
     bone: String,
     tool: Tool,
@@ -508,6 +511,15 @@ fn gizmo_hit(g: &Gizmo, tool: Tool, p: Pos2) -> Option<Handle> {
                 None
             }
         }
+        Tool::Shear => {
+            if arm(g.ex) {
+                Some(Handle::Shear(Axis::X))
+            } else if arm(g.ey) {
+                Some(Handle::Shear(Axis::Y))
+            } else {
+                None
+            }
+        }
         Tool::Scale => {
             if center(Handle::Scale(Axis::Free)) {
                 Some(Handle::Scale(Axis::Free))
@@ -531,6 +543,8 @@ fn handle_hint(h: Handle) -> &'static str {
         Handle::Scale(Axis::Free) => crate::i18n::tr("Drag to scale uniformly"),
         Handle::Scale(Axis::X) => crate::i18n::tr("Drag to scale along local X"),
         Handle::Scale(Axis::Y) => crate::i18n::tr("Drag to scale along local Y"),
+        Handle::Shear(Axis::Y | Axis::Free) => crate::i18n::tr("Drag to shear the local Y axis"),
+        Handle::Shear(Axis::X) => crate::i18n::tr("Drag to shear the local X axis"),
     }
 }
 
@@ -716,6 +730,8 @@ struct BoneDraw {
     start: [f32; 2],
     end: [f32; 2],
     parent: Option<String>,
+    /// Alt: the selected bone being drawn again.
+    redraw: Option<String>,
 }
 
 /// A weight paint stroke: the mesh and the bone being painted.
@@ -779,9 +795,7 @@ pub fn ui(app: &mut EditorApp, ui: &mut egui::Ui) {
     draw_slots(app, &ctx, &painter, rect, &pose);
     draw_weight_overlay(app, &painter, rect, &pose);
     if app.show_bones {
-        if rig_marks_shown(app.step, app.doc.bones.len()) {
-            draw_physics_ghosts(app, &painter, rect, &pose);
-        }
+        draw_physics_ghosts(app, &painter, rect, &pose);
         draw_bones(app, &painter, rect, &pose);
         draw_physics_marks(app, &painter, rect, &pose);
     }
@@ -840,7 +854,8 @@ fn draw_event_toasts(app: &mut EditorApp, ui: &egui::Ui, painter: &egui::Painter
 /// The empty document says how to start: the five steps and two buttons.
 fn start_overlay(app: &mut EditorApp, ui: &mut egui::Ui, rect: Rect) {
     use crate::i18n::tr;
-    let area = egui::Area::new(egui::Id::unique("start_overlay")).order(egui::Order::Foreground).fixed_pos(rect.center() - vec2(230.0, 150.0));
+    // Middle, not Foreground: modals and menus live in Foreground and must cover it.
+    let area = egui::Area::new(egui::Id::unique("start_overlay")).order(egui::Order::Middle).fixed_pos(rect.center() - vec2(230.0, 150.0));
     area.show(ui.ctx(), |ui| {
         egui::Frame::new().fill(theme::OVERLAY_BG).corner_radius(8).stroke(Stroke::new(1.0, Color32::from_gray(90))).inner_margin(egui::Margin::same(18)).show(ui, |ui| {
             ui.set_width(440.0);
@@ -946,6 +961,7 @@ fn tool_verb(t: Tool) -> &'static str {
         Tool::Rotate => crate::i18n::tr("rotate"),
         Tool::Translate => crate::i18n::tr("move"),
         Tool::Scale => crate::i18n::tr("scale"),
+        Tool::Shear => crate::i18n::tr("shear"),
     }
 }
 
@@ -1055,8 +1071,9 @@ fn interact(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect:
                         }
                         _ => false,
                     };
-                    let tool = if near_tip { Tool::Rotate } else { Tool::Translate };
-                    app.drag = start_drag(app, pose, app.camera.to_world(rect, p), None, tool, false);
+                    // Alt in the setup pose re-seats the bone, so it always moves.
+                    let tool = if near_tip && !(alt && app.playback.anim.is_none()) { Tool::Rotate } else { Tool::Translate };
+                    app.drag = start_drag(app, pose, app.camera.to_world(rect, p), None, tool, alt);
                     if app.drag.is_some() {
                         app.push_undo();
                     }
@@ -1091,7 +1108,10 @@ fn interact(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect:
         if let Some(v) = drag_values(&d, axis, &snap) {
             let op = match &d.att {
                 Some(a) => attachment_op(a, &v),
-                None => Some(vals_op(app, &d.bone, &v)),
+                None => match v.translate {
+                    Some([x, y]) if d.reseat => Some(Op::ReseatBone { name: d.bone.clone(), x, y }),
+                    _ => Some(vals_op(app, &d.bone, &v)),
+                },
             };
             if let Some(op) = op {
                 app.preview(&d.base, &[op]);
@@ -1106,6 +1126,9 @@ fn interact(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect:
         hint += crate::i18n::tr("  ·  Shift fine · Ctrl snap toggle");
         if d.tool == Tool::Translate {
             hint += crate::i18n::tr(" · hold X / Y to lock axis");
+        }
+        if d.reseat {
+            hint += crate::i18n::tr(" · Alt: only this bone moves");
         }
         app.hint = hint;
         app.drag = Some(d);
@@ -1236,12 +1259,14 @@ fn bone_tool(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect
         && let Some(p) = ui.input(|i| i.pointer.press_origin()).or(response.interact_pointer_pos())
     {
         let parent = app.selection.bone.clone().filter(|b| app.doc.bone(b).is_some());
+        // Alt with a bone selected draws that bone again instead of a new one.
+        let redraw = parent.clone().filter(|_| ui.input(|i| i.modifiers.alt));
         let tip = parent.as_deref().and_then(|b| bone_tip(app, pose, b));
         let start = match tip {
-            Some(t) if app.camera.to_screen(rect, t).distance(p) < 12.0 => t.map(round2),
+            Some(t) if redraw.is_none() && app.camera.to_screen(rect, t).distance(p) < 12.0 => t.map(round2),
             _ => snapped(app.camera.to_world(rect, p)),
         };
-        app.view.bone_draw = Some(BoneDraw { start, end: start, parent });
+        app.view.bone_draw = Some(BoneDraw { start, end: start, parent, redraw });
     }
     if response.dragged_by(PointerButton::Primary)
         && let Some(p) = response.interact_pointer_pos()
@@ -1252,12 +1277,21 @@ fn bone_tool(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect
         let text = crate::tf!("length {}  angle {}°", format!("{:.1}", dx.hypot(dy)), format!("{:.1}", dy.atan2(dx).to_degrees()));
         let parent = d.parent.clone().map_or(crate::i18n::tr("a new root").to_string(), |p| crate::tf!("a child of {}", p));
         app.view.live = Some((p + vec2(16.0, 18.0), text));
-        app.hint = crate::tf!("Drawing {} · Ctrl toggles snapping · release to create", parent);
+        app.hint = match &d.redraw {
+            Some(b) => crate::tf!("Drawing {} again · its children and images stay · release to apply", b),
+            None => crate::tf!("Drawing {} · Ctrl toggles snapping · release to create", parent),
+        };
     }
     if response.drag_stopped()
         && let Some(d) = app.view.bone_draw.take()
         && app.camera.to_screen(rect, d.start).distance(app.camera.to_screen(rect, d.end)) >= 5.0
     {
+        if let Some(name) = d.redraw {
+            if app.edit(vec![Op::RedrawBone { name: name.clone(), start: d.start, end: d.end }]) {
+                app.status = crate::tf!("Drew {} again · Ctrl+Z to undo", name);
+            }
+            return;
+        }
         let name = (1..).map(|i| if i == 1 { "bone".to_string() } else { format!("bone_{i}") }).find(|n| app.doc.bone(n).is_none()).expect("unbounded range");
         if app.edit(vec![Op::AddBoneWorld { name: name.clone(), parent: d.parent, start: d.start, end: Some(d.end) }]) {
             select(app, Some(Pick::Bone(name)));
@@ -1265,7 +1299,8 @@ fn bone_tool(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect
     }
     if response.hovered() && app.view.bone_draw.is_none() {
         app.hint = match &app.selection.bone {
-            Some(b) => crate::tf!("Drag to draw a child of {} (start at its tip to chain) · click a bone to pick the parent · click empty space for a root", b),
+            Some(b) if ui.input(|i| i.modifiers.alt) => crate::tf!("Alt+drag draws {} again: its children and images stay where they are", b),
+            Some(b) => crate::tf!("Drag to draw a child of {} (start at its tip to chain) · Alt+drag draws it again · click a bone to pick the parent · click empty space for a root", b),
             None => crate::i18n::tr("Drag to draw a root bone · click a bone to draw children of it").into(),
         };
     }
@@ -1684,6 +1719,10 @@ fn current_values(app: &EditorApp, name: &str) -> (f32, [f32; 2], [f32; 2]) {
 /// In an animation, picked mesh vertices are what they move (keyed as
 /// deformation); otherwise the bone.
 fn attachment_target(app: &EditorApp, pose: &Pose) -> Option<AttachmentDrag> {
+    // Regions have no shear, so this tool always works on the bone.
+    if app.tool == Tool::Shear {
+        return None;
+    }
     let name = app.selection.slot.as_deref().filter(|s| app.slot_pickable(s))?;
     let si = app.doc.slot_index(name)?;
     let slot = &app.doc.slots[si];
@@ -1791,8 +1830,10 @@ fn start_drag(app: &EditorApp, pose: &Pose, start: [f32; 2], handle: Option<Hand
     };
 
     let shear = current_shear(app, &name);
-    let shearing = alt && tool == Tool::Scale && att.is_none();
+    let shearing = (tool == Tool::Shear || (alt && tool == Tool::Scale)) && att.is_none();
+    let reseat = alt && tool == Tool::Translate && att.is_none() && app.playback.anim.is_none();
     Some(Drag {
+        reseat,
         base: app.doc.clone(),
         bone: name,
         tool,
@@ -1878,7 +1919,7 @@ fn drag_values(d: &Drag, axis: Axis, snap: &Snap) -> Option<Vals> {
             }
             v.translate = Some(t.map(round2));
         }
-        Tool::Scale => {
+        Tool::Scale | Tool::Shear => {
             // Spine과 다름: Alt+Scale drags shear a bone. X skews the X
             // axis; Y/free skews the Y axis. Attachments keep normal scaling.
             if d.shearing {
@@ -1966,7 +2007,7 @@ fn nudge(app: &mut EditorApp, ctx: &egui::Context) {
             Tool::Translate => Vals { translate: Some(presses.map(|p| p * big)), ..Default::default() },
             Tool::Rotate => Vals { rotate: Some(steps), ..Default::default() },
             Tool::Scale => Vals { scale: Some([1.0 + steps * 0.01; 2]), ..Default::default() },
-            Tool::Select | Tool::Bone | Tool::Mesh | Tool::Weights => return,
+            Tool::Shear | Tool::Select | Tool::Bone | Tool::Mesh | Tool::Weights => return,
         };
         if let Some(op) = attachment_op(&a, &v) {
             app.edit_coalesced(format!("nudge:{}:{:?}", a.slot, app.tool), vec![op]);
@@ -1992,6 +2033,11 @@ fn nudge(app: &mut EditorApp, ctx: &egui::Context) {
             let d = (presses[0] + presses[1]) * 0.01 * big;
             Vals { scale: Some([round3(sc[0] + d), round3(sc[1] + d)]), ..Default::default() }
         }
+        Tool::Shear => {
+            // Left and right nudge the X axis, up and down the Y axis.
+            let s = current_shear(app, &name);
+            Vals { shear: Some([round2(s[0] + presses[0] * big), round2(s[1] + presses[1] * big)]), ..Default::default() }
+        }
         Tool::Select | Tool::Bone | Tool::Mesh | Tool::Weights => return,
     };
     let op = vals_op(app, &name, &v);
@@ -2009,6 +2055,7 @@ enum Act {
     ShowAll,
     Tool(Tool),
     SlotOrder(usize),
+    Clip(String, Option<String>),
 }
 
 /// Right-click picks what is under the cursor and opens a menu for it: the
@@ -2041,50 +2088,58 @@ fn context_menu(app: &mut EditorApp, response: &egui::Response, rect: Rect, pose
     let slots = app.doc.slots.len();
     let anything_hidden = !(app.hidden_bones.is_empty() && app.hidden_slots.is_empty());
     response.context_menu(|ui| {
-        let mut item = |ui: &mut egui::Ui, label: String, a: Act| {
-            if ui.button(label).clicked() {
+        let mut item = |ui: &mut egui::Ui, icon: crate::icons::Icon, label: String, a: Act| {
+            if ui.add(crate::icons::labeled(icon, label)).clicked() {
                 act = Some(a);
             }
         };
         if let (Some(s), Some(i)) = (&slot, slot_index) {
             ui.label(egui::RichText::new(crate::tf!("Slot {}", s)).color(theme::SLOT).small());
+            // Shares its rules with the slot list's menu.
+            if app.doc.slot(s).is_some_and(|x| x.clip.is_some()) {
+                item(ui, crate::icons::Icon::Clip, format!("{}    Ctrl+Alt+G", tr("Remove clip")), Act::Clip(s.clone(), None));
+            } else if !crate::panels::is_clip_base(&app.doc, s)
+                && let Some(base) = crate::panels::clip_below_target(&app.doc, s)
+            {
+                item(ui, crate::icons::Icon::Clip, format!("{}    Ctrl+Alt+G", crate::tf!("Clip to {}", base)), Act::Clip(s.clone(), Some(base)));
+            }
             if i + 1 < slots {
-                item(ui, tr("Bring to front").into(), Act::SlotOrder(slots - 1));
+                item(ui, crate::icons::Icon::ArrowUp, tr("Bring to front").into(), Act::SlotOrder(slots - 1));
             }
             if i > 0 {
-                item(ui, tr("Send to back").into(), Act::SlotOrder(0));
+                item(ui, crate::icons::Icon::ArrowDown, tr("Send to back").into(), Act::SlotOrder(0));
             }
-            item(ui, format!("{}    M", tr("Edit mesh")), Act::Tool(Tool::Mesh));
-            item(ui, format!("{}    G", tr("Paint weights")), Act::Tool(Tool::Weights));
+            item(ui, crate::icons::Icon::Mesh, format!("{}    M", tr("Edit mesh")), Act::Tool(Tool::Mesh));
+            item(ui, crate::icons::Icon::Weights, format!("{}    G", tr("Paint weights")), Act::Tool(Tool::Weights));
             ui.separator();
         }
         if let Some(b) = &sel {
             ui.label(egui::RichText::new(crate::tf!("Bone {}", b)).color(app.doc.bone(b).map_or(theme::BONE, theme::bone_text_color)).small());
             if !animating {
-                item(ui, tr("Add child bone here").into(), Act::AddChild);
+                item(ui, crate::icons::Icon::Bone, tr("Add child bone here").into(), Act::AddChild);
             }
             if animating {
-                item(ui, format!("{}    K", tr("Key edited")), Act::Key);
+                item(ui, crate::icons::Icon::Key, format!("{}    K", tr("Key edited")), Act::Key);
             }
-            item(ui, tr("Reset bone pose").into(), Act::Reset);
-            item(ui, format!("{}    F", tr("Frame selection")), Act::Frame);
-            item(ui, tr("Hide bone").into(), Act::Hide);
+            item(ui, crate::icons::Icon::Reset, tr("Reset bone pose").into(), Act::Reset);
+            item(ui, crate::icons::Icon::FrameAll, format!("{}    F", tr("Frame selection")), Act::Frame);
+            item(ui, crate::icons::Icon::EyeOff, tr("Hide bone").into(), Act::Hide);
             ui.separator();
         }
         if !animating {
-            item(ui, tr("Add bone here (root)").into(), Act::AddRoot);
+            item(ui, crate::icons::Icon::Bone, tr("Add bone here (root)").into(), Act::AddRoot);
         }
-        item(ui, format!("{}    Shift+F", tr("Frame all")), Act::FrameAll);
+        item(ui, crate::icons::Icon::FrameAll, format!("{}    Shift+F", tr("Frame all")), Act::FrameAll);
         if anything_hidden {
-            item(ui, tr("Show hidden bones and slots").into(), Act::ShowAll);
+            item(ui, crate::icons::Icon::Eye, tr("Show hidden bones and slots").into(), Act::ShowAll);
         }
         ui.separator();
         if prev != cur {
-            item(ui, crate::tf!("Back to {}", tr(prev.label())), Act::Tool(prev));
+            item(ui, prev.icon(), crate::tf!("Back to {}", tr(prev.label())), Act::Tool(prev));
         }
         ui.menu_button(tr("Tool"), |ui| {
             for (t, label, _) in Tool::ALL {
-                if ui.button(format!("{}    {}", tr(label.split(' ').next().unwrap_or(label)), label.split(['(', ')']).nth(1).unwrap_or(""))).clicked() {
+                if ui.add(crate::icons::labeled(t.icon(), format!("{}    {}", tr(label.split(' ').next().unwrap_or(label)), label.split(['(', ')']).nth(1).unwrap_or("")))).clicked() {
                     act = Some(Act::Tool(t));
                 }
             }
@@ -2133,6 +2188,7 @@ fn context_menu(app: &mut EditorApp, response: &egui::Response, rect: Rect, pose
             app.hidden_slots.clear();
         }
         Act::Tool(t) => app.set_tool(t),
+        Act::Clip(slot, base) => crate::panels::set_clip(app, &slot, base),
         Act::SlotOrder(index) => {
             if let Some(name) = slot {
                 app.edit(vec![Op::MoveSlot { name, index }]);
@@ -2156,6 +2212,9 @@ fn nice(x: f32) -> f32 {
     e * if m <= 1.0 { 1.0 } else if m <= 2.0 { 2.0 } else if m <= 5.0 { 5.0 } else { 10.0 }
 }
 
+/// Height of the row of controls under the guide band, with its gap.
+const VIEWPORT_CONTROLS_H: f32 = 44.0;
+
 fn draw_grid(app: &EditorApp, painter: &egui::Painter, rect: Rect) {
     let cam = &app.camera;
     let minor = nice(20.0 / cam.zoom);
@@ -2167,13 +2226,17 @@ fn draw_grid(app: &EditorApp, painter: &egui::Painter, rect: Rect) {
     let dim = theme::TEXT_DIM;
     let fmt = |v: f32| format!("{:.*}", decimals, v + 0.0);
     let range = |a: f32, b: f32| ((a / minor).floor() as i64)..=((b / minor).ceil() as i64);
+    // Numbers start below what covers the viewport's top: the guide band and,
+    // when shown, the row of playback and physics controls under it.
+    let controls = app.playback.anim.is_some() || !app.doc.physics.is_empty();
+    let free_top = rect.top() + theme::GUIDE_BAND_H + if controls { VIEWPORT_CONTROLS_H } else { 0.0 };
     for i in range(x0, x1).take(600) {
         let x = i as f32 * minor;
         let sx = cam.to_screen(rect, [x, 0.0]).x.round() + 0.5;
         let is_major = i % ratio == 0;
         painter.line_segment([pos2(sx, rect.top()), pos2(sx, rect.bottom())], Stroke::new(1.0, if is_major { theme::GRID_MAJOR } else { theme::GRID_MINOR }));
         if is_major {
-            painter.text(pos2(sx + 3.0, rect.top() + 2.0), Align2::LEFT_TOP, fmt(x), font.clone(), dim);
+            painter.text(pos2(sx + 3.0, free_top + 2.0), Align2::LEFT_TOP, fmt(x), font.clone(), dim);
         }
     }
     for i in range(y0, y1).take(600) {
@@ -2181,7 +2244,7 @@ fn draw_grid(app: &EditorApp, painter: &egui::Painter, rect: Rect) {
         let sy = cam.to_screen(rect, [0.0, y]).y.round() + 0.5;
         let is_major = i % ratio == 0;
         painter.line_segment([pos2(rect.left(), sy), pos2(rect.right(), sy)], Stroke::new(1.0, if is_major { theme::GRID_MAJOR } else { theme::GRID_MINOR }));
-        if is_major {
+        if is_major && sy - 16.0 >= free_top {
             painter.text(pos2(rect.left() + 3.0, sy - 1.0), Align2::LEFT_BOTTOM, fmt(y), font.clone(), dim);
         }
     }
@@ -2249,10 +2312,21 @@ fn draw_slots(app: &mut EditorApp, ctx: &egui::Context, painter: &egui::Painter,
     // dimming, hull edges in cyan and inner triangle edges in gray.
     let mesh_view = matches!(app.tool, Tool::Mesh | Tool::Weights) && selected_mesh(app, pose).is_some();
     let show_triangles = app.settings.mesh_triangles;
-    for shape in slot_shapes(&app.doc, pose) {
+    let shapes = slot_shapes(&app.doc, pose);
+    let mut masks: HashMap<usize, Option<std::sync::Arc<crate::blendpass::ClipMask>>> = HashMap::new();
+    for shape in &shapes {
         let slot = app.doc.slots[shape.slot].clone();
         if app.hidden_slots.contains(&slot.name) {
             continue;
+        }
+        // A clipped slot follows its base: nothing shows where the base shows nothing.
+        let mut mask = None;
+        if app.blend_pass && let Some(base) = slot.clip.as_deref().and_then(|c| app.doc.slot_index(c)) {
+            let Some(base_shape) = shapes.iter().find(|s| s.slot == base) else { continue };
+            if app.hidden_slots.contains(&app.doc.slots[base].name) {
+                continue;
+            }
+            mask = masks.entry(base).or_insert_with(|| clip_mask(app, ctx, rect, pose, base_shape)).clone();
         }
         let selected = app.selection.slot.as_deref() == Some(slot.name.as_str());
         if mesh_view && app.settings.mesh_isolate && !selected {
@@ -2313,18 +2387,26 @@ fn draw_slots(app: &mut EditorApp, ctx: &egui::Context, painter: &egui::Painter,
                 for t in &shape.tris {
                     mesh.add_triangle(t[0] as u32, t[1] as u32, t[2] as u32);
                 }
-                let pixels = if slot.blend.is_normal() || !app.blend_pass { None } else { effective_image.as_deref().and_then(|img| app.blend_pixels(img, tex.id())) };
+                let pixels = if (slot.blend.is_normal() && mask.is_none()) || !app.blend_pass { None } else { effective_image.as_deref().and_then(|img| app.blend_pixels(img, tex.id())) };
                 match pixels {
-                    Some(pixels) => { painter.add(crate::blendpass::shape(rect, slot.blend, tex.id(), pixels, &mesh)); }
+                    Some(pixels) => { painter.add(crate::blendpass::shape(rect, slot.blend, tex.id(), pixels, &mesh, mask)); }
                     None => { painter.add(Shape::mesh(mesh)); }
                 }
                 hover_outline(painter);
+                let is_hovered = hovered.as_deref() == Some(slot.name.as_str());
+                let outline = if (selected || is_hovered) && !mesh_view { effective_image.as_deref().and_then(|img| app.image_outline(img)) } else { None };
                 if selected {
                     if shape.mesh {
                         edges(painter, Stroke::new(1.5, sel.gamma_multiply(0.8)));
                     } else {
-                        painter.extend(outline_shapes(&pts, Stroke::new(2.5, sel)));
+                        // The box stays, quieter, once the image's own edge is drawn.
+                        let stroke = if outline.is_some() { Stroke::new(1.0, sel.gamma_multiply(0.5)) } else { Stroke::new(2.5, sel) };
+                        painter.extend(outline_shapes(&pts, stroke));
                     }
+                }
+                if let Some(loops) = outline {
+                    let color = if selected { sel } else { Color32::from_white_alpha(200) };
+                    draw_image_outline(painter, &loops, shape, &pts, color);
                 }
             }
             None if shape.mesh => {
@@ -2346,6 +2428,65 @@ fn draw_slots(app: &mut EditorApp, ctx: &egui::Context, painter: &egui::Painter,
                 hover_outline(painter);
             }
         }
+    }
+}
+
+/// The mask a clip base gives this frame; `None` when it has no image to cut with.
+fn clip_mask(app: &mut EditorApp, ctx: &egui::Context, rect: Rect, pose: &Pose, shape: &SlotShape) -> Option<std::sync::Arc<crate::blendpass::ClipMask>> {
+    let attachment = pose.attachment(&app.doc, shape.slot).and_then(|a| app.doc.materialize_attachment(shape.slot, a))?;
+    let image = match &attachment {
+        Attachment::Region(r) => r.image.clone(),
+        Attachment::Mesh(m) => m.image.clone(),
+        _ => None,
+    }?;
+    let tex = app.texture(ctx, &image)?;
+    let pixels = app.blend_pixels(&image, tex.id())?;
+    let tint = color32(pose.slots[shape.slot].color);
+    let mut mesh = Mesh::with_texture(tex.id());
+    for (&p, uv) in shape.pts.iter().zip(&shape.uvs) {
+        mesh.vertices.push(egui::epaint::Vertex { pos: app.camera.to_screen(rect, p), uv: pos2(uv[0], uv[1]), color: tint });
+    }
+    for t in &shape.tris {
+        mesh.add_triangle(t[0] as u32, t[1] as u32, t[2] as u32);
+    }
+    Some(crate::blendpass::clip_mask(rect, tex.id(), pixels, &mesh))
+}
+
+/// Where an image coordinate lands, through the triangle that holds it.
+fn uv_to_screen(uv: [f32; 2], shape: &SlotShape, pts: &[Pos2]) -> Option<Pos2> {
+    const EPS: f32 = 0.002;
+    shape.tris.iter().find_map(|&[a, b, c]| {
+        let (ua, ub, uc) = (shape.uvs[a], shape.uvs[b], shape.uvs[c]);
+        let det = (ub[0] - ua[0]) * (uc[1] - ua[1]) - (uc[0] - ua[0]) * (ub[1] - ua[1]);
+        if det.abs() < 1e-9 {
+            return None;
+        }
+        let (px, py) = (uv[0] - ua[0], uv[1] - ua[1]);
+        let v = (px * (uc[1] - ua[1]) - (uc[0] - ua[0]) * py) / det;
+        let w = ((ub[0] - ua[0]) * py - px * (ub[1] - ua[1])) / det;
+        (v >= -EPS && w >= -EPS && v + w <= 1.0 + EPS).then(|| pts[a] + (pts[b] - pts[a]) * v + (pts[c] - pts[a]) * w)
+    })
+}
+
+/// The edge of an image's visible pixels, carried by the slot's shape. A part
+/// of the edge outside a mesh's triangles is left out.
+fn draw_image_outline(painter: &egui::Painter, loops: &[Vec<[f32; 2]>], shape: &SlotShape, pts: &[Pos2], color: Color32) {
+    for ring in loops {
+        let mut run: Vec<Pos2> = Vec::with_capacity(ring.len() + 1);
+        let flush = |run: &mut Vec<Pos2>| {
+            if run.len() >= 2 {
+                painter.add(Shape::line(run.clone(), Stroke::new(3.5, Color32::from_black_alpha(150))));
+                painter.add(Shape::line(std::mem::take(run), Stroke::new(1.5, color)));
+            }
+            run.clear();
+        };
+        for uv in ring.iter().chain(ring.first()) {
+            match uv_to_screen(*uv, shape, pts) {
+                Some(p) => run.push(p),
+                None => flush(&mut run),
+            }
+        }
+        flush(&mut run);
     }
 }
 
@@ -2394,6 +2535,12 @@ fn bone_is_faint(step: crate::steps::Step, busy: bool, bound: bool) -> bool {
 fn rig_marks_shown(step: crate::steps::Step, bones: usize) -> bool {
     use crate::steps::Step;
     matches!(step, Step::Bones | Step::Animate) && bones <= BUSY_RIG_BONES
+}
+
+/// A constraint's marks and ghost: all of them on a small rig, on a busy one
+/// only for the selected constraint or bone.
+fn physics_mark_shown(app: &EditorApp, c: &skel2d_core::PhysicsConstraint) -> bool {
+    rig_marks_shown(app.step, app.doc.bones.len()) || app.selection.physics.as_deref() == Some(c.name.as_str()) || app.selection.bone.as_deref() == Some(c.bone.as_str())
 }
 
 /// Bones of the selected mesh.
@@ -2532,7 +2679,7 @@ fn draw_physics_ghosts(app: &EditorApp, painter: &egui::Painter, rect: Rect, pos
     let plain = Pose::compute_skinned(&app.doc, &tracks, &app.skins);
     for c in &app.doc.physics {
         let Some(i) = app.doc.bone_index(&c.bone) else { continue };
-        if app.hidden_bones.contains(&c.bone) || i >= plain.bones.len() { continue; }
+        if app.hidden_bones.contains(&c.bone) || i >= plain.bones.len() || !physics_mark_shown(app, c) { continue; }
         let (o, t) = bone_ends(app, rect, pose, i);
         let (go, gt) = bone_ends(app, rect, &plain, i);
         if o.distance(go) < 0.5 && t.distance(gt) < 0.5 { continue; }
@@ -2556,11 +2703,9 @@ fn draw_physics_marks(app: &EditorApp, painter: &egui::Painter, rect: Rect, pose
         painter.line_segment([a, b], shadow);
         painter.line_segment([a, b], stroke(1.6));
     };
-    let all = rig_marks_shown(app.step, app.doc.bones.len());
     for c in &app.doc.physics {
         let Some(i) = app.doc.bone_index(&c.bone) else { continue };
-        if app.hidden_bones.contains(&c.bone) { continue; }
-        if !all && app.selection.physics.as_deref() != Some(c.name.as_str()) && app.selection.bone.as_deref() != Some(c.bone.as_str()) { continue; }
+        if app.hidden_bones.contains(&c.bone) || !physics_mark_shown(app, c) { continue; }
         let (o, t) = bone_ends(app, rect, pose, i);
         let len = o.distance(t);
         let at = if len > 1.0 { o + (t - o) * 0.5 + vec2(-dirn(o, t).y, dirn(o, t).x) * ((len * 0.08).clamp(2.0, 7.0) + 8.0) } else { o + vec2(8.0, -8.0) };
@@ -2651,6 +2796,10 @@ fn draw_gizmo(app: &EditorApp, painter: &egui::Painter, rect: Rect, pose: &Pose)
             arm(vec2(0.0, -1.0), AXIS_Y, Handle::Move(Axis::Y), false);
             center(Handle::Move(Axis::Free));
         }
+        Tool::Shear => {
+            arm(g.ex, AXIS_X, Handle::Shear(Axis::X), true);
+            arm(g.ey, AXIS_Y, Handle::Shear(Axis::Y), true);
+        }
         Tool::Scale => {
             arm(g.ex, AXIS_X, Handle::Scale(Axis::X), true);
             arm(g.ey, AXIS_Y, Handle::Scale(Axis::Y), true);
@@ -2733,6 +2882,14 @@ mod tests {
     fn weight_pose_test_and_stroke_preserve_document_and_record_one_undo() {
         let path=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/arm/arm.skel.json");
         let doc=skel2d_core::load(&path).unwrap();
+        let mut app=EditorApp::test_app(doc.clone(),path.clone());
+        app.selection.bone=Some("lower".into());
+        let pose=Pose::compute(&doc,None);
+        assert!(start_drag(&app,&pose,[0.0,0.0],None,Tool::Translate,true).unwrap().reseat,"Alt+move re-seats in the setup pose");
+        assert!(!start_drag(&app,&pose,[0.0,0.0],None,Tool::Translate,false).unwrap().reseat,"plain move does not");
+        assert!(!start_drag(&app,&pose,[0.0,0.0],None,Tool::Scale,true).unwrap().reseat,"Alt+scale stays shear");
+        app.playback.anim=doc.animations.keys().next().cloned();
+        assert!(!start_drag(&app,&pose,[0.0,0.0],None,Tool::Translate,true).unwrap().reseat,"an animation only poses");
         let setup=weight_test_pose(&doc,&[],None);
         let posed=weight_test_pose(&doc,&[],Some(&("lower".into(),90.0)));
         let Attachment::Mesh(mesh)=&doc.slots[0].attachments[0] else {panic!()};
@@ -2781,7 +2938,7 @@ mod tests {
             base: Document::new("shear"), bone:"bone".into(), tool:Tool::Scale,
             start:[1.0,0.0],eff:[0.0,1.0],last:[0.0,1.0],axis:Axis::Y,handle:None,
             axes:[[1.0,0.0],[0.0,1.0]],anchor:[0.0,0.0],parent_inv:Some(Affine::IDENTITY),
-            mirrored:false,rotate:0.0,translate:[0.0,0.0],scale:[1.0,1.0],shear:[7.0,10.0],shearing:true,att:None,
+            mirrored:false,rotate:0.0,translate:[0.0,0.0],scale:[1.0,1.0],shear:[7.0,10.0],shearing:true,att:None,reseat:false,
         };
         let snap = Snap { on:false,angle:15.0,grid:1.0 };
         let value = drag_values(&drag,Axis::Y,&snap).unwrap();
@@ -2822,6 +2979,98 @@ mod tests {
     fn strip() -> CoreMesh {
         let v = |x: f32| skel2d_core::MeshVertex { x, y: 0.0, u: 0.0, v: 0.0, weights: Vec::new() };
         CoreMesh { bones: Vec::new(), hull: 0, edges: Vec::new(), name: "m".into(), image: None, vertices: vec![v(0.0), v(10.0), v(20.0)], triangles: Vec::new() }
+    }
+
+    #[test]
+    fn the_clip_shortcut_clips_to_the_slot_behind_and_back() {
+        let doc = skel2d_core::apply(&Document::with_root("t"), &skel2d_core::parse_ops(r#"[
+            {"op":"add_slot","name":"base","bone":"root"},
+            {"op":"add_slot","name":"shade","bone":"root"},
+            {"op":"add_slot","name":"line","bone":"root"}
+        ]"#).unwrap()).unwrap();
+        let mut app = EditorApp::test_app(doc, std::env::temp_dir().join("skel2d-clip.skel.json"));
+        let clip = |app: &EditorApp, n: &str| app.doc.slot(n).unwrap().clip.clone();
+        crate::panels::toggle_clip(&mut app);
+        assert!(!app.status.is_empty(), "with nothing picked it says what to do");
+        app.selection.slot = Some("shade".into());
+        crate::panels::toggle_clip(&mut app);
+        assert_eq!(clip(&app, "shade").as_deref(), Some("base"));
+        app.selection.slot = Some("line".into());
+        crate::panels::toggle_clip(&mut app);
+        assert_eq!(clip(&app, "line").as_deref(), Some("base"), "stacks on the same base, as in Photoshop");
+        app.selection.slot = Some("base".into());
+        crate::panels::toggle_clip(&mut app);
+        assert_eq!(clip(&app, "base"), None, "the back slot and a base have nothing to clip to");
+        assert!(!app.status.is_empty());
+        app.selection.slot = Some("line".into());
+        crate::panels::toggle_clip(&mut app);
+        assert_eq!(clip(&app, "line"), None, "pressing it again removes the clip");
+    }
+
+    #[test]
+    fn a_busy_rig_shows_physics_marks_only_for_the_selection() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/celestial-circus/celestial-circus.skel.json");
+        let doc = skel2d_core::load(&path).unwrap();
+        assert!(doc.bones.len() > BUSY_RIG_BONES);
+        let mut app = EditorApp::test_app(doc.clone(), path);
+        app.step = crate::steps::Step::Animate;
+        let (a, b) = (&doc.physics[0], doc.physics.iter().find(|c| c.bone != doc.physics[0].bone).unwrap());
+        assert!(!physics_mark_shown(&app, a), "nothing selected, nothing drawn");
+        app.selection.bone = Some(a.bone.clone());
+        assert!(physics_mark_shown(&app, a), "the selected bone's constraint");
+        assert!(!physics_mark_shown(&app, b), "another bone's stays quiet");
+        app.selection.bone = None;
+        app.selection.physics = Some(b.name.clone());
+        assert!(physics_mark_shown(&app, b), "the selected constraint");
+    }
+
+    #[test]
+    fn the_shear_tool_skews_the_bone_by_axis_and_ignores_a_picked_image() {
+        let doc = skel2d_core::apply(&Document::with_root("t"), &skel2d_core::parse_ops(r#"[
+            {"op":"add_slot","name":"s","bone":"root","attachment":"r","attachments":[{"type":"region","name":"r","width":10,"height":10}]}
+        ]"#).unwrap()).unwrap();
+        let mut app = EditorApp::test_app(doc.clone(), std::env::temp_dir().join("skel2d-shear.skel.json"));
+        app.selection.bone = Some("root".into());
+        app.selection.slot = Some("s".into());
+        app.tool = Tool::Shear;
+        let pose = Pose::compute(&doc, None);
+        let snap = Snap { on: false, angle: 15.0, grid: 10.0 };
+        let mut d = start_drag(&app, &pose, [10.0, 0.0], Some(Handle::Shear(Axis::X)), Tool::Shear, false).unwrap();
+        assert_eq!(d.bone, "root", "the bone, not the picked image");
+        d.eff = [10.0, 10.0];
+        let v = drag_values(&d, Axis::X, &snap).unwrap();
+        assert!(app.edit(vec![vals_op(&app, "root", &v)]));
+        let root = app.doc.bone("root").unwrap();
+        assert!((root.shear_x - 45.0).abs() < 0.01 && root.shear_y == 0.0, "{root:?}");
+        let mut d = start_drag(&app, &pose, [10.0, 0.0], None, Tool::Shear, false).unwrap();
+        d.eff = [10.0, 10.0];
+        let v = drag_values(&d, Axis::Free, &snap).unwrap();
+        assert!(app.edit(vec![vals_op(&app, "root", &v)]));
+        assert!((app.doc.bone("root").unwrap().shear_y - 45.0).abs() < 0.01, "free drag shears Y");
+    }
+
+    #[test]
+    fn root_works_like_any_bone_in_the_viewport() {
+        let doc = Document::with_root("t");
+        let mut app = EditorApp::test_app(doc.clone(), std::env::temp_dir().join("skel2d-root.skel.json"));
+        let pose = Pose::compute(&doc, None);
+        let rect = Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0));
+        let at = app.camera.to_screen(rect, [0.0, 0.0]);
+        assert_eq!(pick(&app, &pose, rect, at), Some(Pick::Bone("root".into())), "root can be picked");
+        app.selection.bone = Some("root".into());
+        for tool in [Tool::Translate, Tool::Rotate, Tool::Scale] {
+            assert!(start_drag(&app, &pose, [10.0, 10.0], None, tool, false).is_some(), "{tool:?} drags root");
+        }
+        app.tool = Tool::Translate;
+        assert!(gizmo(&app, &pose, rect).is_some(), "root gets a gizmo");
+        for (tool, end) in [(Tool::Translate, [30.0, 10.0]), (Tool::Rotate, [10.0, 30.0]), (Tool::Scale, [20.0, 20.0])] {
+            let mut d = start_drag(&app, &pose, [10.0, 10.0], None, tool, false).unwrap();
+            d.eff = end;
+            let v = drag_values(&d, Axis::Free, &Snap { on: false, angle: 15.0, grid: 10.0 }).unwrap();
+            assert!(app.edit(vec![vals_op(&app, "root", &v)]), "{tool:?} edits root");
+        }
+        let root = app.doc.bone("root").unwrap();
+        assert!(root.x != 0.0 && root.rotation != 0.0 && root.scale_x != 1.0, "{root:?}");
     }
 
     #[test]

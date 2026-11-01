@@ -3,7 +3,7 @@
 Terse reference for agents. All output is JSON; errors are JSON on stderr (CLI, exit 1) or HTTP 400 (API).
 
 ## Conventions
-- **The root bone.** Every document has a locked bone named `root`: `skel2d new` starts with it, loading an older file without one adds it. `add_bone` / `add_bone_world` without `parent` put the new bone under root. `add_bone` named `root` on a document that already has one only overwrites its values. Root cannot be removed (`remove_bone`), renamed, or given a parent, and no other bone can lose its parent (`set_bone` `parent:null` is refused). Index 0 of `info`/`pose` bone lists is therefore root; address bones by name.
+- **The root bone.** Every document has a bone named `root`: `skel2d new` starts with it, loading an older file without one adds it. `add_bone` / `add_bone_world` without `parent` put the new bone under root. `add_bone` named `root` on a document that already has one only overwrites its values. Root can be moved, rotated, scaled and keyed like any other bone. It cannot be removed (`remove_bone`), renamed, or given a parent, and no other bone can lose its parent (`set_bone` `parent:null` is refused). Index 0 of `info`/`pose` bone lists is therefore root; address bones by name.
 
 - y-up, angles in degrees, counter-clockwise.
 - Bone x/y/rotation/scale are relative to the parent. `length` is visual only (along local +x; does not affect children).
@@ -216,6 +216,10 @@ Bone transforms support setup `shear_x`/`shear_y` in degrees (default 0) and `in
 
 `ik` constraints are solved after bone animation by ascending `order` (i32, default 0), preserving document array order on ties (inside pose evaluation, so `pose` and `render` show the result).
 - `add_ik` and `set_ik` accept `order`. `set_constraint_order {names:[...]}` lists every constraint exactly once and assigns priorities 0,1,2,...; unknown, repeated or missing names fail atomically. Available through CLI `apply`, HTTP and MCP `skel2d_apply_ops`, with generated schemas.
+- PSD origin: a layer with `[origin]` in its name marks the origin with its center (hidden or not; never a part), else the first vertical and horizontal guides, else the canvas center. The editor puts a marked origin on the target bone, so root lands on it. `skel2d psd` reports it as `origin` and `origin_source`; `layers.json` keeps canvas positions. Photoshop's ruler origin is not read.
+- `reseat_bone {name,x,y}` moves a bone's setup position (in parent space) while everything on it stays put: direct children and regions, including skin regions, are compensated and meshes keep their setup-space vertices. Use it to fix a joint or re-pivot `root` after import. The editor does this on Alt+drag in the setup pose. A bone with zero scale is refused.
+- `redraw_bone {name,start:[x,y],end:[x,y]}` draws a bone again in world space: position, rotation and length change, its scale is kept, and direct children, regions (skin regions too) and meshes stay put. A region has no shear, so under a non-uniform bone scale it keeps position and size but not skew. The editor does this on Alt+drag with the New bone tool.
+- `set_slot {name,clip}` shows a slot only inside another slot's rendered image, like a Photoshop clipping layer: `clip` names the base slot, `null` removes it (`add_slot` takes it too). The two slots keep moving on their own, and the clipped slot shows nothing where the base shows nothing. One level only: a base cannot be clipped itself. Renaming the base follows through and removing it clears the clip. The editor's PSD import can keep clipped layers this way (Each layer, keep clipping).
 - 1 bone `[b]`: rotates `b` so its +x axis aims at the target's world origin.
 - 2 bones `[parent, child]`: child must be a direct child of parent; parent+child rotate so the child's tip (`length` along +x) reaches the target (clamped to reach). `bend_positive` true = counter-clockwise elbow, false = clockwise.
 - `softness` (>= 0, default 0): the world distance before full reach at which the chain starts to ease, so the limb does not snap straight. The easing covers target distances reach-softness..reach+softness. Two-bone chains only.
@@ -275,7 +279,7 @@ One PNG per part instead of one image. Manifest (layers back to front, canvas pi
 - The spec (humanoid/chain/custom) builds the skeleton from the composite silhouette exactly as for a single PNG; coordinates are canvas pixels.
 
 `skel2d slice SHEET.png -o DIR [--prefix part] [--merge 40] [--padding 4] [--min-pixels 50]` cuts a parts sheet into `DIR/PREFIX_NN.png` (reading order, 1-based) and prints `{"pieces":[{"file","bbox","size"}]}`. Pieces closer than `merge` px stay one part (eye pairs); smaller than `min_pixels` is ignored; refuses to overwrite.
-`skel2d psd FILE.psd -o DIR [--exclude NAME]... [--layers]` splits a PSD: one cropped PNG per top-level group (layers composited back to front, hidden layers included) or ungrouped layer (with `--layers`: one per layer, groups only organize them), plus `DIR/layers.json` (back to front, `x`/`y`, ready for `bone`/`bones`/`mesh`) and `DIR/composite.png` (place joints on it with `image-info --grid`). Prints `{"canvas","manifest","composite","parts":[{"name","psd_name","file","x","y","size","psd_layers"}]}`; refuses to overwrite. `--exclude` drops a layer or group (e.g. a flattened reference). A paper background layer (`용지`/`Paper`/`用紙`) is always skipped.
+`skel2d psd FILE.psd -o DIR [--exclude NAME]... [--layers | --inner-groups] [--skip-hidden]` splits a PSD: one cropped PNG per top-level group (layers composited back to front, clipped layers painted onto their base, hidden layers included unless `--skip-hidden`) or ungrouped layer (with `--layers`: one per layer, groups only organize them), plus `DIR/layers.json` (back to front, `x`/`y`, ready for `bone`/`bones`/`mesh`) and `DIR/composite.png` (place joints on it with `image-info --grid`). Prints `{"canvas","manifest","composite","parts":[{"name","psd_name","file","x","y","size","psd_layers"}]}`; refuses to overwrite. `--exclude` drops a layer or group (e.g. a flattened reference). A paper background layer (`용지`/`Paper`/`用紙`) is always skipped.
 AI-generated sheets: request a flat #00FF00 background, then `--key 00ff00` (chroma key, despill) and `--defringe 32` (alpha < 32 -> transparent, specks < min_pixels erased); `skel2d key IMG -o OUT [--color 00ff00] [--tolerance 60]` does the key alone. When pieces are too close to slice (eye pairs wider apart than the gap between items), cut by hand: `skel2d crop SHEET --rects rects.json -o DIR [--key ...] [--defringe N]`, rects = `[{"name","rect":[x0,y0,x1,y1]}]`. MCP `skel2d_slice` takes `key`, `key_tolerance`, `defringe`.
 
 ## Face poses and layering
@@ -310,7 +314,7 @@ skel2d mcp F                      # MCP stdio server
 skel2d image-info IMG.png [--grid OUT.png] [--step 50] [--spec SPEC]
 skel2d rig IMG.png|layers.json (--spec FILE | --spec-json JSON) -o OUT [--cell N] [--grid-mesh] [--no-mesh] [--max-influences N] [--force]
 skel2d slice SHEET.png -o DIR [--prefix part] [--merge 40] [--padding 4] [--min-pixels 50] [--key RRGGBB] [--defringe N]
-skel2d psd FILE.psd -o DIR [--exclude NAME] [--layers]
+skel2d psd FILE.psd -o DIR [--exclude NAME] [--layers | --inner-groups] [--skip-hidden]
 skel2d crop SHEET.png --rects RECTS.json -o DIR [--key RRGGBB] [--defringe N]
 skel2d key IMG.png -o OUT.png [--color 00ff00] [--tolerance 60]
 skel2d schema [ops|document|rig|layers]
@@ -342,6 +346,7 @@ claude mcp add skel2d -- skel2d mcp path/to/file.skel.json
 
 ## GIF export
 `skel2d gif FILE -o OUT [--anim A] [--track NAME]... [--skin S]... [--all-animations] [--all-skins] [options]`; MCP `skel2d_gif {out, anim?, layers?, skins?, all_animations?, all_skins?, options?}`; HTTP `GET /gif?anim=A&skins=a,b&layers=JSON&options={json}` -> `image/gif` (one file; no anim = setup pose). With `--all-animations` / `--all-skins` (also both) `out` is a folder and files are `anim-skin.gif`. CLI/MCP reply `{"files":[{"out","bytes","stats":{"width","height","frames","seconds","colors","missing_images"}}]}`.
+`skel2d sheet FILE -o OUT.png [--columns N] [--padding PX]` takes the same frame options as `gif` (`--gif-fps` up to 120) and writes one PNG holding every frame of one play plus `OUT.json`: a `frames` array of `{filename, frame:{x,y,w,h}, duration}` (milliseconds) and a `meta` object. With `--all-animations`/`--all-skins`, `-o` is a folder.
 `options` (MCP/HTTP JSON, all optional = `GifOptions` in `crates/skel2d-render/src/gif.rs`; CLI flag in brackets):
 ```
 fps 50 (max 50, [--gif-fps])   colors 256 [--colors]   dither false   quality 5 (1..10)   transparent false   alpha_threshold 128

@@ -39,9 +39,37 @@ pub enum Icon {
     CollapseAll,
     Skin,
     Physics,
+    ToastSuccess,
+    ToastInfo,
+    ToastWarning,
+    ToastError,
+    Key,
+    Shear,
+    Clip,
+    Play,
+    Pause,
+    Close,
+    Delete,
+    Rename,
+    Duplicate,
+    Undo,
+    Redo,
+    ArrowUp,
+    ArrowDown,
+    Reset,
+    Save,
+    OpenFolder,
+    NewFile,
+    Export,
+    Import,
+    Loop,
+    Settings,
+    Copy,
+    Paste,
+    FrameAll,
 }
 
-const PNGS: [&[u8]; 29] = [
+const PNGS: [&[u8]; 57] = [
     include_bytes!("../assets/icons/select.png"),
     include_bytes!("../assets/icons/rotate.png"),
     include_bytes!("../assets/icons/move.png"),
@@ -71,6 +99,34 @@ const PNGS: [&[u8]; 29] = [
     include_bytes!("../assets/icons/collapse_all.png"),
     include_bytes!("../assets/icons/skin.png"),
     include_bytes!("../assets/icons/physics.png"),
+    include_bytes!("../assets/icons/toast_success.png"),
+    include_bytes!("../assets/icons/toast_info.png"),
+    include_bytes!("../assets/icons/toast_warning.png"),
+    include_bytes!("../assets/icons/toast_error.png"),
+    include_bytes!("../assets/icons/key.png"),
+    include_bytes!("../assets/icons/shear.png"),
+    include_bytes!("../assets/icons/clip.png"),
+    include_bytes!("../assets/icons/play.png"),
+    include_bytes!("../assets/icons/pause.png"),
+    include_bytes!("../assets/icons/close.png"),
+    include_bytes!("../assets/icons/delete.png"),
+    include_bytes!("../assets/icons/rename.png"),
+    include_bytes!("../assets/icons/duplicate.png"),
+    include_bytes!("../assets/icons/undo.png"),
+    include_bytes!("../assets/icons/redo.png"),
+    include_bytes!("../assets/icons/arrow_up.png"),
+    include_bytes!("../assets/icons/arrow_down.png"),
+    include_bytes!("../assets/icons/reset.png"),
+    include_bytes!("../assets/icons/save.png"),
+    include_bytes!("../assets/icons/open_folder.png"),
+    include_bytes!("../assets/icons/new_file.png"),
+    include_bytes!("../assets/icons/export.png"),
+    include_bytes!("../assets/icons/import.png"),
+    include_bytes!("../assets/icons/loop.png"),
+    include_bytes!("../assets/icons/settings.png"),
+    include_bytes!("../assets/icons/copy.png"),
+    include_bytes!("../assets/icons/paste.png"),
+    include_bytes!("../assets/icons/frame_all.png"),
 ];
 
 static TEXTURES: OnceLock<Vec<TextureHandle>> = OnceLock::new();
@@ -86,6 +142,16 @@ pub fn load(ctx: &egui::Context) {
 }
 
 /// The icon at `size` points, white (tint it, or let a button do it).
+/// A button with an icon before its label; the icon follows the text color.
+pub fn labeled<'a>(icon: Icon, text: impl Into<egui::WidgetText>) -> egui::Button<'a> {
+    egui::Button::new((image(icon, 16.0), text.into())).image_tint_follows_text_color(true)
+}
+
+/// A small button that is only an icon. Give it hover text.
+pub fn small<'a>(icon: Icon) -> egui::Button<'a> {
+    egui::Button::new(image(icon, 14.0)).image_tint_follows_text_color(true)
+}
+
 pub fn image(icon: Icon, size: f32) -> egui::Image<'static> {
     let tex = &TEXTURES.get().expect("icons::load runs at startup")[icon as usize];
     egui::Image::from_texture((tex.id(), egui::vec2(size, size))).fit_to_exact_size(egui::vec2(size, size))

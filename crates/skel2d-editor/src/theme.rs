@@ -93,6 +93,8 @@ pub const FIELD_LABEL_W: f32 = 190.0;
 pub const DIALOG_WIDTH: f32 = 500.0;
 pub const DIALOG_HEIGHT: f32 = 560.0;
 pub const DIALOG_GAP: f32 = 12.0;
+/// Space inside a popup, on each side of its content.
+pub const DIALOG_MARGIN: f32 = 22.0;
 pub const TRACK_LIST_HEIGHT: f32 = 112.0;
 pub const TRACK_CONTROLS_WIDTH: f32 = 230.0;
 pub const TRACK_NAME_MIN_WIDTH: f32 = 50.0;
@@ -300,8 +302,46 @@ pub fn popup_frame() -> egui::Frame {
         .fill(Color32::from_gray(48))
         .stroke(Stroke::new(1.0, Color32::from_gray(96)))
         .corner_radius(10)
-        .inner_margin(22)
+        .inner_margin(DIALOG_MARGIN as i8)
         .shadow(egui::epaint::Shadow { offset: [0, 8], blur: 28, spread: 0, color: Color32::from_black_alpha(140) })
+}
+
+#[cfg(test)]
+mod dialog_row_tests {
+    use super::*;
+
+    /// Gap between the button row's bottom and the modal's bottom, after settling.
+    fn gap(screen: egui::Vec2, heights: &[f32], sized: bool) -> f32 {
+        let ctx = egui::Context::default();
+        let mut out = 0.0;
+        for &height in heights {
+            for _ in 0..6 {
+                let input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, screen)), ..Default::default() };
+                let _ = ctx.run_pass(input, |ctx| {
+                    let shown = modal("row_test").show(ctx, |ui| {
+                        ui.set_width(DIALOG_WIDTH);
+                        ui.allocate_space(egui::vec2(100.0, height));
+                        if sized {
+                            dialog_buttons(ui, |ui| ui.add(egui::Button::new("OK").min_size(egui::vec2(60.0, MIN_CLICK_H))).rect)
+                        } else {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| ui.add(egui::Button::new("OK").min_size(egui::vec2(60.0, MIN_CLICK_H))).rect).inner
+                        }
+                    });
+                    out = shown.response.rect.bottom() - shown.inner.bottom();
+                });
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn buttons_sit_at_the_bottom_of_a_popup() {
+        for screen in [egui::vec2(1280.0, 820.0), egui::vec2(2560.0, 1440.0)] {
+            for heights in [&[500.0][..], &[500.0, 60.0][..]] {
+                assert_eq!(gap(screen, heights, true), gap(screen, &[60.0], true), "{screen:?} {heights:?}: the margin stays the same when content shrinks");
+            }
+        }
+    }
 }
 
 pub fn modal(id: &str) -> egui::Modal {
@@ -320,6 +360,14 @@ pub fn dialog_title(ui: &mut egui::Ui, title: &str, about: &str) {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Emphasis { Plain, Primary, Danger }
+
+/// The action row at the bottom of a popup, right-aligned. It has its own
+/// height: a bare right-to-left layout centers its buttons in whatever height
+/// is left, which leaves them floating above the popup's bottom edge.
+pub fn dialog_buttons<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let size = egui::vec2(ui.available_width(), MIN_CLICK_H);
+    ui.allocate_ui_with_layout(size, egui::Layout::right_to_left(egui::Align::Center), add).inner
+}
 
 pub fn dialog_button(text: &str, emphasis: Emphasis) -> egui::Button<'_> {
     let (fill, color) = match emphasis {
@@ -402,7 +450,7 @@ pub fn hint(ui: &mut egui::Ui, text: &str) {
 
 /// A button for destructive actions: tinted so it is not clicked by mistake.
 pub fn danger_button(text: &str) -> egui::Button<'_> {
-    egui::Button::new(egui::RichText::new(text).color(Color32::from_rgb(255, 150, 150))).stroke(Stroke::new(1.0, Color32::from_rgb(140, 70, 70)))
+    crate::icons::labeled(crate::icons::Icon::Delete, egui::RichText::new(text).color(Color32::from_rgb(255, 150, 150))).stroke(Stroke::new(1.0, Color32::from_rgb(140, 70, 70)))
 }
 
 /// WCAG relative luminance of an opaque sRGB color.

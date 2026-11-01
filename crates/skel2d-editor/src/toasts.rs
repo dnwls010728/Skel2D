@@ -5,7 +5,12 @@
 
 use eframe::egui::{self, Color32, RichText};
 
+use crate::icons::{self, Icon};
 use crate::theme;
+
+/// Width of the colored edge on a toast's left side.
+const EDGE_W: f32 = 4.0;
+const ICON_SIZE: f32 = 18.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -25,13 +30,13 @@ impl Kind {
         }
     }
 
-    /// A glyph per kind, so the kind does not rest on color alone.
-    fn glyph(self) -> &'static str {
+    /// An icon per kind, so the kind does not rest on color alone.
+    fn icon(self) -> Icon {
         match self {
-            Kind::Info => "i",
-            Kind::Success => "OK",
-            Kind::Warning => "!",
-            Kind::Error => "×",
+            Kind::Info => Icon::ToastInfo,
+            Kind::Success => Icon::ToastSuccess,
+            Kind::Warning => Icon::ToastWarning,
+            Kind::Error => Icon::ToastError,
         }
     }
 
@@ -109,34 +114,56 @@ pub fn classify(text: &str) -> Kind {
     }
 }
 
-/// Draws the stack in the bottom right corner of `rect` and advances its timers.
-/// Returns true while it needs repaints.
-pub fn show(ctx: &egui::Context, toasts: &mut Toasts, rect: egui::Rect) -> bool {
+/// Where the stack goes: the bottom right corner of the viewport, or with a
+/// popup open the gutter left of it, so a toast never covers the popup's
+/// buttons. Returns the anchor, its pivot and the width available.
+fn placement(screen: egui::Rect, viewport: egui::Rect, popup_open: bool) -> (egui::Pos2, egui::Align2, f32) {
+    let m = theme::TOAST_MARGIN;
+    if popup_open {
+        let popup = theme::DIALOG_WIDTH + 2.0 * theme::DIALOG_MARGIN;
+        let gutter = (screen.width() - popup) / 2.0 - 2.0 * m;
+        return (egui::pos2(screen.left() + m, viewport.bottom() - m), egui::Align2::LEFT_BOTTOM, theme::TOAST_W.min(gutter).max(120.0));
+    }
+    (viewport.right_bottom() - egui::vec2(m, m), egui::Align2::RIGHT_BOTTOM, theme::TOAST_W.min((viewport.width() - 2.0 * m).max(120.0)))
+}
+
+/// Draws the stack and advances its timers. Returns true while it needs repaints.
+pub fn show(ctx: &egui::Context, toasts: &mut Toasts, rect: egui::Rect, popup_open: bool) -> bool {
     if toasts.items.is_empty() {
         return false;
     }
     let mut hovered = None;
     let mut closed = None;
+    let (at, pivot, width) = placement(ctx.content_rect(), rect, popup_open);
     egui::Area::new(egui::Id::unique("toast_stack"))
-        .fixed_pos(rect.right_bottom() - egui::vec2(theme::TOAST_MARGIN, theme::TOAST_MARGIN))
-        .pivot(egui::Align2::RIGHT_BOTTOM)
+        .fixed_pos(at)
+        .pivot(pivot)
         .order(egui::Order::Tooltip)
         .show(ctx, |ui| {
-            ui.set_max_width(theme::TOAST_W.min((rect.width() - 2.0 * theme::TOAST_MARGIN).max(120.0)));
+            ui.set_max_width(width);
             ui.spacing_mut().item_spacing.y = 6.0;
             for (i, t) in toasts.items.iter().enumerate() {
                 let color = t.kind.color();
-                let frame = egui::Frame::new().fill(theme::OVERLAY_BG).stroke(egui::Stroke::new(1.0, color)).corner_radius(5).inner_margin(egui::Margin::symmetric(8, 6));
+                let frame = egui::Frame::new()
+                    .fill(theme::OVERLAY_BG)
+                    .stroke(egui::Stroke::new(1.0, color.gamma_multiply(0.45)))
+                    .corner_radius(6)
+                    .inner_margin(egui::Margin { left: 14, right: 8, top: 8, bottom: 8 });
                 let out = frame.show(ui, |ui| {
                     ui.horizontal_top(|ui| {
-                        ui.label(RichText::new(t.kind.glyph()).strong().color(color).size(theme::SIZE_BODY)).on_hover_text(crate::i18n::tr(t.kind.name()));
+                        ui.spacing_mut().item_spacing.x = 8.0;
+                        ui.add(icons::image(t.kind.icon(), ICON_SIZE).tint(color)).on_hover_text(crate::i18n::tr(t.kind.name()));
                         let text = if t.count > 1 { format!("{}  ×{}", t.text, t.count) } else { t.text.clone() };
                         ui.add(egui::Label::new(RichText::new(text).color(theme::TEXT).size(theme::SIZE_SMALL)).wrap());
-                        if ui.small_button("×").on_hover_text(crate::i18n::tr("Dismiss")).clicked() {
+                        let close = egui::Button::new(icons::image(Icon::Close, 11.0).tint(theme::TEXT_DIM)).frame(false);
+                        if ui.add(close).on_hover_text(crate::i18n::tr("Dismiss")).clicked() {
                             closed = Some(i);
                         }
                     });
                 });
+                let r = out.response.rect;
+                let edge = egui::Rect::from_min_max(r.min, egui::pos2(r.min.x + EDGE_W, r.max.y));
+                ui.painter().rect_filled(edge, egui::CornerRadius { nw: 6, sw: 6, ne: 0, se: 0 }, color);
                 if out.response.hovered() {
                     hovered = Some(i);
                 }
@@ -190,6 +217,20 @@ mod tests {
         }
         assert_eq!(t.items.len(), theme::TOAST_MAX);
         assert_eq!(t.items.last().unwrap().text, format!("m{}", theme::TOAST_MAX + 2));
+    }
+
+    #[test]
+    fn with_a_popup_open_the_stack_stays_clear_of_it() {
+        let viewport = egui::Rect::from_min_max(egui::pos2(160.0, 90.0), egui::pos2(850.0, 760.0));
+        for width in [1280.0, 1920.0] {
+            let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 820.0));
+            let (at, pivot, room) = placement(screen, viewport, true);
+            assert_eq!(pivot, egui::Align2::LEFT_BOTTOM);
+            let popup_left = screen.center().x - theme::DIALOG_WIDTH / 2.0 - theme::DIALOG_MARGIN;
+            assert!(at.x + room <= popup_left, "{} + {room} vs {popup_left}", at.x);
+        }
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 820.0));
+        assert_eq!(placement(screen, viewport, false).1, egui::Align2::RIGHT_BOTTOM);
     }
 
     #[test]

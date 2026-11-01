@@ -10,3 +10,4 @@ skel2d-core.workspace = true
 tiny-skia.workspace = true
 serde.workspace = true
 gif = "0.14"
+serde_json.workspace = true

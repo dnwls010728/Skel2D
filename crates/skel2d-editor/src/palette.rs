@@ -29,6 +29,7 @@ enum Action {
     MeshMode(crate::viewport::MeshMode),
     MeshAction(crate::viewport::MeshAction),
     ResetShear,
+    ToggleClip,
     BoneInheritance(skel2d_core::Inherit),
     AddLayer(String),
     RemoveLayer(String),
@@ -130,6 +131,9 @@ fn item(label: String, en: String, action: Action) -> Command {
 
 fn commands(app: &EditorApp) -> Vec<Command> {
     let mut out = Vec::new();
+    if app.selection.slot.is_some() {
+        out.push(cmd("Clip or unclip the selected slot", "Ctrl+Alt+G", Action::ToggleClip));
+    }
     if app.selection.bone.is_some() {
         out.push(cmd("Reset shear", "", Action::ResetShear));
         if app.playback.anim.is_none() {
@@ -233,7 +237,7 @@ fn commands(app: &EditorApp) -> Vec<Command> {
         }
     }
     out.push(cmd("Preferences", "Ctrl+,", Action::Preferences));
-    out.push(cmd("Export GIF", "Ctrl+E", Action::ExportGif));
+    out.push(cmd("Export GIF or sprite sheet", "Ctrl+E", Action::ExportGif));
     if crate::dialogs::selected_item(app).is_some() {
         out.push(cmd("Rename", "F2", Action::RenameItem));
         out.push(cmd("Delete", "Del", Action::DeleteItem));
@@ -331,6 +335,7 @@ fn score(query: &str, text: &str) -> Option<i32> {
 
 fn run(app: &mut EditorApp, action: Action) {
     match action {
+        Action::ToggleClip => crate::panels::toggle_clip(app),
         Action::ResetShear => {
             if let Some(name) = app.selection.bone.clone() {
                 let op = if let Some(animation) = app.playback.anim.clone() {
@@ -408,9 +413,7 @@ fn run(app: &mut EditorApp, action: Action) {
         Action::ImportImages => {
             let files = crate::import::pick_images();
             if !files.is_empty() {
-                let at = app.camera.center;
-                let bone = app.selection.bone.clone();
-                crate::import::import_images(app, &files, at, bone);
+                crate::import::import_picked(app, files);
             }
         }
         Action::NewAnimation => crate::dialogs::new_animation(app),

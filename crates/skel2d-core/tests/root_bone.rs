@@ -28,6 +28,17 @@ fn new_bones_go_under_the_root_and_it_cannot_be_lost() {
 }
 
 #[test]
+fn root_transforms_and_keys_like_any_bone() {
+    let d = Document::with_root("t");
+    let d = ops(&d, json!({"op":"set_bone","name":"root","x":5,"y":-2,"rotation":30,"scale_x":2,"scale_y":0.5,"shear_x":10})).unwrap();
+    let d = ops(&d, json!({"op":"add_animation","name":"a","duration":1})).unwrap();
+    let d = ops(&d, json!({"op":"key_bone","animation":"a","bone":"root","time":0.5,"rotate":45,"translate":[1,2],"scale":[1.5,1.5]})).unwrap();
+    let keys = &d.animations["a"].bones["root"];
+    assert_eq!((keys.rotate.len(), keys.translate.len(), keys.scale.len()), (1, 1, 1));
+    assert!(validate(&d).is_empty());
+}
+
+#[test]
 fn older_documents_gain_a_root_without_moving_anything() {
     let dir = std::env::temp_dir().join(format!("skel2d-root-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();

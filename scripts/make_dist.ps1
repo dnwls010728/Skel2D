@@ -23,7 +23,7 @@ if (-not $manual) { throw 'manual PDF is missing: build docs\manual\pdf first' }
 Copy-Item $manual.FullName "$out\Skel2D_Manual_ko.pdf"
 
 # miya is left out: its PSD is a working file, not sample material meant for release.
-foreach ($example in 'spineboy', 'celestial-circus', 'skins', 'face', 'walker', 'arm', 'rig') {
+foreach ($example in 'spineboy', 'celestial-circus', 'skins', 'face', 'walker', 'arm', 'rig', 'clipping') {
     if (-not (Test-Path "examples\$example")) { throw "examples\$example is missing" }
     Copy-Item -Recurse "examples\$example" "$out\examples\$example"
 }

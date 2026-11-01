@@ -216,6 +216,22 @@ enum Command {
         #[command(flatten)]
         args: GifArgs,
     },
+    /// Export animations as a sprite sheet: one PNG plus a JSON file with each
+    /// frame's position and duration.
+    Sheet {
+        file: PathBuf,
+        /// Output PNG, or folder with --all-animations / --all-skins.
+        #[arg(short, long)]
+        out: PathBuf,
+        /// Frames per row; 0 picks a nearly square sheet.
+        #[arg(long, default_value_t = 0)]
+        columns: u32,
+        /// Empty pixels between frames.
+        #[arg(long, default_value_t = 0)]
+        padding: u32,
+        #[command(flatten)]
+        args: GifArgs,
+    },
     /// Analyze a PNG (size, visible bounds, islands). With --grid, also write
     /// a copy with labeled pixel coordinates to read joint positions from.
     ImageInfo {
@@ -311,6 +327,12 @@ enum Command {
         /// One part per layer; groups only organize them (layer-per-part PSD).
         #[arg(long)]
         layers: bool,
+        /// One part per innermost group, for PSDs with nested groups.
+        #[arg(long, conflicts_with = "layers")]
+        inner_groups: bool,
+        /// Leave out layers hidden in the PSD (default: import them).
+        #[arg(long)]
+        skip_hidden: bool,
     },
     /// Remove a flat background color (chroma key) and write a transparent PNG.
     Key {
@@ -347,6 +369,7 @@ fn main() -> ExitCode {
         Command::Pose { file, anim, time, since, layers, skins, physics } => commands::pose(&file, anim.as_deref(), time, since, layers.as_deref(), &skins, &physics),
         Command::Render { file, out, args } => commands::render(&file, &out, &args),
         Command::Gif { file, out, args } => commands::gif(&file, &out, &args),
+        Command::Sheet { file, out, columns, padding, args } => commands::sheet(&file, &out, columns, padding, &args),
         Command::ImageInfo { image, grid, step, spec } => rig::image_info(&image, grid.as_deref(), step, spec.as_deref()),
         Command::Rig { image, spec, spec_json, out, cell, grid_mesh, no_mesh, max_influences, force } => {
             rig::rig(&image, spec.as_deref(), spec_json, &out, cell, grid_mesh, no_mesh, max_influences, force)
@@ -357,7 +380,7 @@ fn main() -> ExitCode {
         Command::Crop { sheet, rects, out, key, key_tolerance, defringe, min_pixels } => {
             rig::KeyArgs::new(key.as_deref(), key_tolerance).and_then(|k| rig::crop(&sheet, &rects, &out, k, defringe, min_pixels))
         }
-        Command::Psd { file, out, exclude, layers } => rig::psd(&file, &out, &exclude, if layers { skel2d_rig::psd::Split::Layers } else { skel2d_rig::psd::Split::Groups }),
+        Command::Psd { file, out, exclude, layers, inner_groups, skip_hidden } => rig::psd(&file, &out, &exclude, if layers { skel2d_rig::psd::Split::Layers } else if inner_groups { skel2d_rig::psd::Split::Innermost } else { skel2d_rig::psd::Split::Groups }, if skip_hidden { skel2d_rig::psd::Hidden::Skip } else { skel2d_rig::psd::Hidden::Include }),
         Command::Key { image, out, color, tolerance } => rig::key(&image, &out, &color, tolerance),
         Command::Schema { kind } => commands::schema(&kind),
         Command::Serve { file, port } => serve::run(&file, port),

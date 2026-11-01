@@ -53,6 +53,8 @@ pub enum Tool {
     Rotate,
     Translate,
     Scale,
+    /// Skews the selected bone: the X handle shears its X axis, the Y handle its Y axis.
+    Shear,
     /// Spine's Create tool: drag to draw a new bone.
     Bone,
     /// Add, remove and move vertices of the selected mesh.
@@ -63,7 +65,7 @@ pub enum Tool {
 
 impl Tool {
     /// Toolbar order and Spine's default hotkeys (Mesh has none in Spine).
-    pub const ALL: [(Tool, &'static str, Key); 7] = [
+    pub const ALL: [(Tool, &'static str, Key); 8] = [
         (Tool::Select, "Pose (B)", Key::B),
         (Tool::Bone, "Create (N)", Key::N),
         (Tool::Weights, "Weights (G)", Key::G),
@@ -71,6 +73,7 @@ impl Tool {
         (Tool::Rotate, "Rotate (C)", Key::C),
         (Tool::Translate, "Translate (V)", Key::V),
         (Tool::Scale, "Scale (X)", Key::X),
+        (Tool::Shear, "Shear (H)", Key::H),
     ];
 
     /// Toolbar label in English ("Create" for Bone), for `tr`.
@@ -91,6 +94,7 @@ impl Tool {
             Tool::Translate => "Move",
             Tool::Rotate => "Rotate",
             Tool::Scale => "Scale",
+            Tool::Shear => "Shear",
             Tool::Mesh => "Mesh",
             Tool::Weights => "Paint",
         }
@@ -104,6 +108,7 @@ impl Tool {
             Tool::Translate => "Drag to move the selected bone (Ctrl: snap, Shift: fine, X/Y: lock axis).",
             Tool::Rotate => "Drag to rotate the selected bone (Ctrl: snap, Shift: fine).",
             Tool::Scale => "Drag to scale the selected bone (Ctrl: snap, Shift: fine).",
+            Tool::Shear => "Drag to skew the selected bone. The X handle shears X, the Y handle or free drag shears Y (Ctrl: snap, Shift: fine).",
             Tool::Mesh => "Add, move and remove the mesh vertices of the picked image.",
             Tool::Weights => "Paint how strongly the picked bone moves the vertices of the image.",
         }
@@ -115,6 +120,7 @@ impl Tool {
             Tool::Rotate => Icon::Rotate,
             Tool::Translate => Icon::Move,
             Tool::Scale => Icon::Scale,
+            Tool::Shear => Icon::Shear,
             Tool::Bone => Icon::Bone,
             Tool::Mesh => Icon::Mesh,
             Tool::Weights => Icon::Weights,
@@ -123,7 +129,7 @@ impl Tool {
 
     /// Tools that manipulate the selected bone with a gizmo.
     pub fn transforms(self) -> bool {
-        matches!(self, Tool::Rotate | Tool::Translate | Tool::Scale)
+        matches!(self, Tool::Rotate | Tool::Translate | Tool::Scale | Tool::Shear)
     }
 }
 
@@ -314,10 +320,15 @@ impl Default for Settings {
     }
 }
 
+/// Closed loops along an image's visible edge, in image coordinates.
+pub type ImageOutline = std::sync::Arc<Vec<Vec<[f32; 2]>>>;
+
 /// What replaces the current document once unsaved changes are settled.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Replace {
     New,
+    /// A new document that then imports `EditorApp::import_after_new`.
+    NewWithImport,
     Open,
     OpenExample,
 }
@@ -330,6 +341,8 @@ pub(crate) enum Dialog {
     ConfirmReplace(Replace),
     /// Asks how to split the PSDs among files being imported.
     PsdSplit(crate::import::PendingImport),
+    /// Asks whether picked images start a new project or join the open one.
+    ImportTarget(Vec<PathBuf>),
     /// Asks whether dropped PNGs go into the picked slot or become new slots.
     DropChoice(crate::import::PendingDrop),
     Editor(Box<crate::dialogs::EditorDialog>),
@@ -390,6 +403,7 @@ pub struct EditorApp {
     pub timeline: crate::timeline::TimelineState,
     applied_scale: f32,
     textures: HashMap<String, Option<TextureHandle>>,
+    outlines: HashMap<String, Option<ImageOutline>>,
     pub status: String,
     /// `status` holds why the last preview was refused.
     preview_refused: bool,
@@ -414,6 +428,8 @@ pub struct EditorApp {
     screenshot: Option<Screenshot>,
     pub blend_pass: bool,
     blend_images: HashMap<egui::TextureId, std::sync::Arc<crate::blendpass::Pixels>>,
+    /// Images waiting for the new document of [`Replace::NewWithImport`].
+    import_after_new: Vec<PathBuf>,
 }
 
 impl EditorApp {
@@ -483,6 +499,7 @@ impl EditorApp {
             timeline: Default::default(),
             applied_scale: 0.0,
             textures: HashMap::new(),
+            outlines: HashMap::new(),
             status: String::new(),
             preview_refused: false,
             pending: BTreeMap::new(),
@@ -497,6 +514,7 @@ impl EditorApp {
             screenshot: None,
             blend_pass: false,
             blend_images: HashMap::new(),
+            import_after_new: Vec::new(),
         }
     }
 
@@ -1050,6 +1068,7 @@ impl EditorApp {
         self.path = None;
         self.file_mtime = None;
         self.textures.clear();
+        self.outlines.clear();
         self.selection = Selection::default();
         self.playback.anim = None;
         self.playback.layers.clear();
@@ -1067,6 +1086,7 @@ impl EditorApp {
                 self.undo.clear();
                 self.redo.clear();
                 self.textures.clear();
+                self.outlines.clear();
                 self.selection = Selection::default();
                 self.playback.anim = None;
                 self.playback.layers.clear();
@@ -1109,6 +1129,11 @@ impl EditorApp {
     fn run_replace(&mut self, what: Replace) {
         match what {
             Replace::New => self.new_document(),
+            Replace::NewWithImport => {
+                self.new_document();
+                let files = std::mem::take(&mut self.import_after_new);
+                crate::import::import_images(self, &files, [0.0, 0.0], None);
+            }
             Replace::Open => self.open_dialog(),
             Replace::OpenExample => self.open_example_dialog(),
         }
@@ -1146,6 +1171,7 @@ impl EditorApp {
         if let Some(p) = rfd::FileDialog::new().add_filter("Skel2D", &["json"]).set_file_name(name).save_file() {
             self.path = Some(p);
             self.textures.clear();
+            self.outlines.clear();
             self.save();
         }
     }
@@ -1177,6 +1203,7 @@ impl EditorApp {
                 self.doc = doc;
                 self.saved = self.doc.clone();
                 self.textures.clear();
+                self.outlines.clear();
                 self.fix_selection();
                 self.status = crate::i18n::tr("Reloaded external change").to_string();
             }
@@ -1199,6 +1226,17 @@ impl EditorApp {
         let pixels = std::sync::Arc::new(crate::blendpass::Pixels { width: pm.width(), height: pm.height(), data: pm.data().to_vec() });
         self.blend_images.insert(id, pixels.clone());
         Some(pixels)
+    }
+
+    /// The edge of an image's visible pixels as closed loops in image
+    /// coordinates (0..=1), traced once per image.
+    pub fn image_outline(&mut self, rel: &str) -> Option<ImageOutline> {
+        if let Some(o) = self.outlines.get(rel) {
+            return o.clone();
+        }
+        let outline = tiny_skia::Pixmap::load_png(self.base_dir().join(rel)).ok().map(|pm| std::sync::Arc::new(skel2d_rig::mesh::alpha_outline(&pm)));
+        self.outlines.insert(rel.to_string(), outline.clone());
+        outline
     }
 
     pub fn texture(&mut self, ctx: &egui::Context, rel: &str) -> Option<TextureHandle> {
@@ -1235,6 +1273,10 @@ impl EditorApp {
             return;
         }
         let typing = ctx.egui_wants_keyboard_input();
+        if !typing && ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND | Modifiers::ALT, Key::G)) {
+            crate::panels::toggle_clip(self);
+            return;
+        }
         let (undo, redo, save, open) = ctx.input_mut(|i| {
             // egui permits extra modifiers: consume Ctrl+Shift+Z before Ctrl+Z.
             let redo=i.consume_shortcut(&REDO) || i.consume_shortcut(&REDO_ALT);
@@ -1295,9 +1337,14 @@ impl EditorApp {
                 self.settings.onion_skin = !self.settings.onion_skin;
             }
         });
+        // Shift+R comes first: egui lets plain R match it too.
         if !self.doc.physics.is_empty() && ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::R)) {
             self.physics_reset();
             self.status = crate::i18n::tr("Physics restarted from the current pose").into();
+        }
+        if self.step == crate::steps::Step::Animate && !ctx.egui_wants_keyboard_input() && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::R)) {
+            self.settings.auto_key = !self.settings.auto_key;
+            self.status = crate::i18n::tr(if self.settings.auto_key { "Auto key on: every change writes a key" } else { "Auto key off: changes stay unkeyed until you key them" }).into();
         }
         // Ctrl + = / - / 0: UI size (remembered in the settings, unlike egui's own zoom keys).
         let (bigger, smaller, reset) = ctx.input_mut(|i| {
@@ -1355,7 +1402,8 @@ impl EditorApp {
         let galley = painter.layout_job(job);
         painter.galley(egui::pos2(band.left() + 14.0, band.center().y - galley.size().y / 2.0), galley, theme::TEXT);
 
-        if crate::toasts::show(ui.ctx(), &mut self.toasts, rect) {
+        let popup_open = !matches!(self.dialog, Dialog::None);
+        if crate::toasts::show(ui.ctx(), &mut self.toasts, rect, popup_open) {
             ui.ctx().request_repaint();
         }
         let animate = self.playback.anim.is_some();
@@ -1363,7 +1411,8 @@ impl EditorApp {
         if !animate && !physics {
             return;
         }
-        let area = egui::Area::new(egui::Id::unique("viewport_overlay")).fixed_pos(rect.left_top() + egui::vec2(10.0, theme::GUIDE_BAND_H + 8.0)).order(egui::Order::Foreground);
+        // Middle, not Foreground: modals and menus live in Foreground and must cover it.
+        let area = egui::Area::new(egui::Id::unique("viewport_overlay")).fixed_pos(rect.left_top() + egui::vec2(10.0, theme::GUIDE_BAND_H + 8.0)).order(egui::Order::Middle);
         area.show(ui.ctx(), |ui| {
             ui.horizontal(|ui| {
                 if let Some(a) = self.playback.anim.clone() {
@@ -1375,9 +1424,9 @@ impl EditorApp {
                     let pending = self.pending_count();
                     let on = self.settings.auto_key;
                     let text = if pending > 0 { crate::tf!("Auto key ({} unkeyed)", pending) } else { tr("Auto key").to_string() };
-                    let (mark, color) = if on { ("●", theme::KEY_SET_TEXT) } else { ("○", theme::TEXT_DIM) };
+                    let color = if on { theme::KEY_SET_TEXT } else { theme::TEXT_DIM };
                     let state = tr(if on { "on" } else { "off" });
-                    let button = egui::Button::new(egui::RichText::new(format!("{mark} {text}: {state}")).strong().color(color)).fill(theme::OVERLAY_BG).selected(on);
+                    let button = egui::Button::new((crate::icons::image(Icon::Key, 15.0).tint(color), egui::RichText::new(format!("{text}: {state}")).strong().color(color))).fill(theme::OVERLAY_BG).selected(on);
                     if ui.add(button).on_hover_text(tr("On: every change writes a key. Off: changes stay unkeyed (orange key buttons) until you key them with K or a key button; moving the playhead discards them, with a notice.")).clicked() {
                         self.settings.auto_key = !on;
                     }
@@ -1398,21 +1447,22 @@ impl EditorApp {
         use crate::theme::{PHYSICS, SIZE_SMALL, TEXT_DIM};
         ui.add(crate::icons::image(crate::icons::Icon::Physics, 18.0).tint(PHYSICS));
         let setup = self.playback.anim.is_none();
-        let toggle = |ui: &mut egui::Ui, on: bool, label: &str, tip: &str| {
-            let text = egui::RichText::new(tr(label)).size(SIZE_SMALL).color(if on { egui::Color32::WHITE } else { TEXT_DIM });
-            let button = egui::Button::new(text).fill(if on { PHYSICS.gamma_multiply(0.45) } else { egui::Color32::from_black_alpha(140) }).min_size(egui::vec2(0.0, 30.0)).selected(on);
+        let toggle = |ui: &mut egui::Ui, icon: Icon, on: bool, label: &str, tip: &str| {
+            let fg = if on { egui::Color32::WHITE } else { TEXT_DIM };
+            let text = egui::RichText::new(tr(label)).size(SIZE_SMALL).color(fg);
+            let button = egui::Button::new((crate::icons::image(icon, 14.0).tint(fg), text)).fill(if on { PHYSICS.gamma_multiply(0.45) } else { egui::Color32::from_black_alpha(140) }).min_size(egui::vec2(0.0, 30.0)).selected(on);
             ui.add(button).on_hover_text(tr(tip)).clicked()
         };
-        if toggle(ui, self.physics.paused, "Pause", "Freeze the live physics simulation where it is. Unpause to continue.") {
+        if toggle(ui, Icon::Pause, self.physics.paused, "Pause", "Freeze the live physics simulation where it is. Unpause to continue.") {
             self.physics.paused = !self.physics.paused;
         }
-        if toggle(ui, false, "Reset", "Restart the physics from the current pose (Shift+R)") {
+        if toggle(ui, Icon::Reset, false, "Reset", "Restart the physics from the current pose (Shift+R)") {
             self.physics_reset();
         }
-        if toggle(ui, !self.physics.enabled, "Off", "Turn the physics preview off to see the plain animated pose. The document is not changed.") {
+        if toggle(ui, Icon::Close, !self.physics.enabled, "Off", "Turn the physics preview off to see the plain animated pose. The document is not changed.") {
             self.physics.enabled = !self.physics.enabled;
         }
-        if setup && toggle(ui, self.physics.setup_preview, "Physics preview", "Simulate in the setup pose so bone drags and root moves make the physics react. Off by default; the document is not changed.") {
+        if setup && toggle(ui, Icon::Play, self.physics.setup_preview, "Physics preview", "Simulate in the setup pose so bone drags and root moves make the physics react. Off by default; the document is not changed.") {
             self.physics.setup_preview = !self.physics.setup_preview;
         }
     }
@@ -1479,13 +1529,13 @@ impl EditorApp {
             egui::ScrollArea::vertical().max_height((ctx.content_rect().height() - 120.0).max(240.0)).show(ui, |ui| {
                 type Group<'a> = (&'a str, &'a str, &'a [(&'a str, &'a str)]);
                 let groups: [Group; 7] = [
-                    ("Step 1: Bones", "Build the skeleton. Every bone hangs under another; the top bone is root and cannot be removed or renamed.", &[("N, drag", "Draw a bone under the selected bone (or root)"), ("B", "Select a bone; drag it to move it, near its tip to rotate it"), ("V / C / X", "Move / Rotate / Scale the selected bone"), ("Drag in the list", "Drop a bone on another bone to change its parent")]),
+                    ("Step 1: Bones", "Build the skeleton. Every bone hangs under another; the top bone is root and cannot be removed or renamed.", &[("N, drag", "Draw a bone under the selected bone (or root)"), ("N, Alt+drag", "Draw the selected bone again: its children and images stay"), ("B", "Select a bone; drag it to move it, near its tip to rotate it"), ("Alt+drag", "Move only this bone: its children and images stay where they are"), ("V / C / X", "Move / Rotate / Scale the selected bone"), ("Drag in the list", "Drop a bone on another bone to change its parent")]),
                     ("Step 2: Images", "Put pictures on the bones. A slot is a place on a bone that shows one picture at a time; it can hold several pictures.", &[("Drop PNG / PSD", "Add images as new slots"), ("Add image", "Add more pictures to the selected slot (eyes open / closed, mouth shapes)"), ("Drag in the list", "Change the front-to-back order")]),
                     ("Step 3: Mesh", "A mesh lets a picture bend. Make a mesh first, then reshape it.", &[("Move", "Drag a vertex"), ("Add", "Click to add a vertex"), ("Delete", "Click a vertex to remove it"), ("Fold line", "Drag from vertex to vertex")]),
                     ("Step 4: Weights", "Weights decide how much each bone moves each vertex.", &[("Auto weights", "Let the editor set weights from the image"), ("Drag, Ctrl+drag", "Paint / remove weight of the picked bone"), ("[ / ]", "Brush smaller / larger"), ("Alt+drag", "Bend a bone temporarily to check the result")]),
                     ("Step 5: Animation", "Pick or create an animation, move the time marker, then change something to record a key.", &[("Space", "Play / pause"), (", / .", "Previous / next frame"), ("K", "Key what you changed (nothing changed: the active tool's property, or the slot's image)"), ("Ctrl+Shift+L", "Key every row the dope sheet shows"), ("Key buttons", "Beside the tool's value, on tree rows (bone, slot, mesh, constraint) and in the inspector: red diamond keyed, orange circle changed, hollow diamond not keyed"), ("Dope sheet", "Arrow opens a row into properties; click a row to select its keys; double-click a key to delete; Ctrl+A select all; Ctrl+Shift+drag copies keys"), ("Ctrl+click, Ctrl+drag", "Pick more vertices / box-pick vertices with Move, Rotate or Scale, then deform them"), ("Image card", "Press a picture of the selected slot to switch to it at this time (blinking, mouth shapes)")]),
                     ("View", "", &[("Wheel", "Zoom at the cursor"), ("Middle / right drag", "Pan"), ("F", "Frame selection (Shift+F: everything)"), ("O", "Onion skin")]),
-                    ("Anywhere", "", &[("1 - 5", "Switch step"), ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"), ("Ctrl+K", "Search and run any command, bone, slot or animation"), ("Ctrl+S / Ctrl+O", "Save / open"), ("Ctrl + = / - / 0", "UI size larger / smaller / reset"), ("F2 / Delete", "Rename / delete the selected item"), ("Alt + click", "Cycle through overlapping bones"), ("Shift + drag", "Fine control (1/4 speed)"), ("Ctrl + drag", "Toggle snapping for this drag"), ("F1", "This window")]),
+                    ("Anywhere", "", &[("1 - 5", "Switch step"), ("Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"), ("Ctrl+Alt+G", "Clip the selected slot to the one behind it, or remove its clip"), ("R", "Auto key on or off (step 5)"), ("Ctrl+K", "Search and run any command, bone, slot or animation"), ("Ctrl+S / Ctrl+O", "Save / open"), ("Ctrl + = / - / 0", "UI size larger / smaller / reset"), ("F2 / Delete", "Rename / delete the selected item"), ("Alt + click", "Cycle through overlapping bones"), ("Shift + drag", "Fine control (1/4 speed)"), ("Ctrl + drag", "Toggle snapping for this drag"), ("F1", "This window")]),
                 ];
                 for (title, intro, rows) in groups {
                     crate::theme::section(ui, tr(title));
@@ -1564,46 +1614,46 @@ impl EditorApp {
         use crate::i18n::tr;
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button(tr("File"), |ui| {
-                if ui.button(tr("New")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::NewFile, tr("New"))).clicked() {
                     self.request_replace(Replace::New);
                 }
-                if ui.button(tr("Open... (Ctrl+O)")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::OpenFolder, tr("Open... (Ctrl+O)"))).clicked() {
                     self.request_replace(Replace::Open);
                 }
-                if ui.button(tr("Save (Ctrl+S)")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::Save, tr("Save (Ctrl+S)"))).clicked() {
                     self.save();
                 }
-                if ui.button(tr("Save As...")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::Save, tr("Save As..."))).clicked() {
                     self.save_as();
                 }
-                if ui.button(tr("Export GIF... (Ctrl+E)")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::Export, tr("Export... (Ctrl+E)"))).clicked() {
                     crate::dialogs::export_gif(self);
                     ui.close();
                 }
                 ui.separator();
-                if ui.button(tr("Import images...")).on_hover_text(tr("Add PNGs, or a layered PSD (one slot per top-level group), as slots on the selected bone (or drop files on the viewport)")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::Import, tr("Import images..."))).on_hover_text(tr("Add PNGs, or a layered PSD (you choose what becomes a slot), as slots on the selected bone (or drop files on the viewport)")).clicked() {
                     let files = crate::import::pick_images();
                     if !files.is_empty() {
-                        crate::import::import_images(self, &files, self.camera.center, self.selection.bone.clone());
+                        crate::import::import_picked(self, files);
                     }
                 }
             });
             ui.menu_button(tr("Edit"), |ui| {
-                if ui.button(tr("Preferences... (Ctrl+,)")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::Settings, tr("Preferences... (Ctrl+,)"))).clicked() {
                     crate::dialogs::preferences(self);
                     ui.close();
                 }
                 ui.separator();
-                if ui.add_enabled(!self.undo.is_empty(), egui::Button::new(tr("Undo (Ctrl+Z)"))).clicked() {
+                if ui.add_enabled(!self.undo.is_empty(), crate::icons::labeled(Icon::Undo, tr("Undo (Ctrl+Z)"))).clicked() {
                     self.undo();
                 }
-                if ui.add_enabled(!self.redo.is_empty(), egui::Button::new(tr("Redo (Ctrl+Shift+Z)"))).clicked() {
+                if ui.add_enabled(!self.redo.is_empty(), crate::icons::labeled(Icon::Redo, tr("Redo (Ctrl+Shift+Z)"))).clicked() {
                     self.redo();
                 }
             });
             ui.menu_button(tr("View"), |ui| {
                 ui.checkbox(&mut self.show_bones, tr("Show bones"));
-                if ui.button(tr("Frame all (F)")).clicked() {
+                if ui.add(crate::icons::labeled(Icon::FrameAll, tr("Frame all (F)"))).clicked() {
                     self.camera.needs_fit = true;
                 }
                 ui.checkbox(&mut self.settings.show_grid, tr("Grid"));
@@ -1636,7 +1686,7 @@ impl EditorApp {
                 }
                 self.language_picker(ui);
                 // Every action is searchable here, so nothing needs a visible button to be reachable.
-                let search = egui::Button::new(egui::RichText::new(format!("{}   Ctrl+K", tr("Search commands"))).color(crate::theme::TEXT_DIM)).min_size(egui::vec2(220.0, 0.0));
+                let search = crate::icons::labeled(Icon::Search, egui::RichText::new(format!("{}   Ctrl+K", tr("Search commands"))).color(crate::theme::TEXT_DIM)).min_size(egui::vec2(220.0, 0.0));
                 if ui.add(search).on_hover_text(tr("Find and run any action, bone, slot or animation by name")).clicked() {
                     crate::palette::toggle(self);
                 }
@@ -1676,7 +1726,7 @@ impl EditorApp {
                             self.dialog = Dialog::ConfirmReplace(what);
                         }
                     }
-                    Dialog::PsdSplit(p) => crate::import::import_images_split(self, &p.files, p.at, p.bone, skel2d_rig::psd::Split::Groups),
+                    Dialog::PsdSplit(p) => crate::import::import_images_split(self, &p.files, p.at, p.bone, p.split, p.hidden),
                     Dialog::DropChoice(p) => { crate::panels::add_images_to_slot(self, &p.slot, &p.files); }
                     other => self.dialog = other,
                 }
@@ -1687,13 +1737,17 @@ impl EditorApp {
             Dialog::Editor(_) => unreachable!(),
             Dialog::None => {}
             Dialog::PsdSplit(_) => {
-                use skel2d_rig::psd::Split;
+                use skel2d_rig::psd::{Hidden, Split};
                 let mut choice = None;
                 let Dialog::PsdSplit(pending) = &mut self.dialog else { unreachable!() };
                 crate::theme::modal("psd_split").show(ctx, |ui| {
                     use crate::theme::{Emphasis, choice_card, dialog_button};
                     ui.set_width(crate::theme::DIALOG_WIDTH);
                     crate::theme::dialog_title(ui, tr("Import PSD"), tr("What should become one slot?"));
+                    if choice_card(ui, pending.split == Split::Innermost, tr("Each innermost group"), tr("Parts follow your deepest folders; layers inside one are merged and keep their blending")) {
+                        pending.split = Split::Innermost;
+                    }
+                    ui.add_space(6.0);
                     if choice_card(ui, pending.split == Split::Groups, tr("Each top-level group"), tr("A group's layers are merged into one image, e.g. line art over flat color")) {
                         pending.split = Split::Groups;
                     }
@@ -1701,11 +1755,29 @@ impl EditorApp {
                     if choice_card(ui, pending.split == Split::Layers, tr("Each layer"), tr("Groups only organize the parts (layer-per-part PSD)")) {
                         pending.split = Split::Layers;
                     }
+                    ui.add_space(6.0);
+                    if choice_card(ui, pending.split == Split::LayersKeepClipping, tr("Each layer, keep clipping"), tr("Clipped layers stay separate slots clipped to their base, so they can move on their own")) {
+                        pending.split = Split::LayersKeepClipping;
+                    }
+                    ui.add_space(crate::theme::DIALOG_GAP);
+                    ui.label(tr("Hidden layers"));
+                    ui.add_space(6.0);
+                    if choice_card(ui, pending.hidden == Hidden::Skip, tr("Leave out"), tr("Only what shows in the PSD is imported")) {
+                        pending.hidden = Hidden::Skip;
+                    }
+                    ui.add_space(6.0);
+                    if choice_card(ui, pending.hidden == Hidden::Transparent, tr("Import as transparent"), tr("Hidden parts get a slot with alpha 0, ready to show later")) {
+                        pending.hidden = Hidden::Transparent;
+                    }
+                    ui.add_space(6.0);
+                    if choice_card(ui, pending.hidden == Hidden::Include, tr("Import as visible"), tr("Hidden layers are treated like visible ones")) {
+                        pending.hidden = Hidden::Include;
+                    }
                     ui.add_space(crate::theme::DIALOG_GAP);
                     let (enter, escape) = ui.input_mut(|i| (i.consume_key(Modifiers::NONE, Key::Enter), i.consume_key(Modifiers::NONE, Key::Escape)));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    crate::theme::dialog_buttons(ui, |ui| {
                         if ui.add(dialog_button(tr("Import"), Emphasis::Primary)).on_hover_text("Enter").clicked() || enter {
-                            choice = Some(Some(pending.split));
+                            choice = Some(Some((pending.split, pending.hidden)));
                         }
                         if ui.add(dialog_button(tr("Cancel"), Emphasis::Plain)).on_hover_text("Esc").clicked() || escape {
                             choice = Some(None);
@@ -1714,9 +1786,41 @@ impl EditorApp {
                 });
                 if let Some(split) = choice
                     && let Dialog::PsdSplit(p) = std::mem::replace(&mut self.dialog, Dialog::None)
-                    && let Some(split) = split
+                    && let Some((split, hidden)) = split
                 {
-                    crate::import::import_images_split(self, &p.files, p.at, p.bone, split);
+                    crate::import::import_images_split(self, &p.files, p.at, p.bone, split, hidden);
+                }
+            }
+            Dialog::ImportTarget(_) => {
+                // true = new project, false = this project; None = cancel.
+                let mut choice = None;
+                crate::theme::modal("import_target").show(ctx, |ui| {
+                    use crate::theme::{Emphasis, dialog_button};
+                    ui.set_width(crate::theme::DIALOG_WIDTH);
+                    crate::theme::dialog_title(ui, tr("Where should the images go?"), tr("Start a new project with these images, or add them to the open one?"));
+                    crate::theme::dialog_buttons(ui, |ui| {
+                        if ui.add(dialog_button(tr("New project"), Emphasis::Primary)).clicked() {
+                            choice = Some(Some(true));
+                        }
+                        if ui.add(dialog_button(tr("Add to this project"), Emphasis::Plain)).clicked() {
+                            choice = Some(Some(false));
+                        }
+                        if ui.add(dialog_button(tr("Cancel"), Emphasis::Plain)).on_hover_text("Esc").clicked() {
+                            choice = Some(None);
+                        }
+                    });
+                });
+                if let Some(choice) = choice
+                    && let Dialog::ImportTarget(files) = std::mem::replace(&mut self.dialog, Dialog::None)
+                    && let Some(new_project) = choice
+                {
+                    if new_project {
+                        self.import_after_new = files;
+                        self.request_replace(Replace::NewWithImport);
+                    } else {
+                        let (at, bone) = (self.camera.center, self.selection.bone.clone());
+                        crate::import::import_images(self, &files, at, bone);
+                    }
                 }
             }
             Dialog::DropChoice(_) => {
@@ -1728,7 +1832,7 @@ impl EditorApp {
                     ui.set_width(crate::theme::DIALOG_WIDTH);
                     let about = crate::tf!("Slot \"{}\" is picked. Add the images to it as more looks, or make a new slot for each file?", slot_name);
                     crate::theme::dialog_title(ui, tr("Where should the images go?"), &about);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    crate::theme::dialog_buttons(ui, |ui| {
                         if ui.add(dialog_button(&crate::tf!("Add to slot {}", slot_name), Emphasis::Primary)).clicked() {
                             choice = Some(Some(true));
                         }
@@ -1756,7 +1860,7 @@ impl EditorApp {
                     use crate::theme::{Emphasis, dialog_button};
                     ui.set_width(crate::theme::DIALOG_WIDTH);
                     crate::theme::dialog_title(ui, tr("File changed on disk"), tr("Another tool modified the file while you have unsaved changes."));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    crate::theme::dialog_buttons(ui, |ui| {
                         if ui.add(dialog_button(tr("Reload (discard mine)"), Emphasis::Danger)).clicked() {
                             if let Some(p) = self.path.clone() {
                                 self.reload_external(&p);
@@ -1773,7 +1877,7 @@ impl EditorApp {
             }
             Dialog::ConfirmReplace(what) => {
                 let file = self.path.as_deref().and_then(|p| p.file_name()).map_or_else(|| tr("Untitled").to_string(), |n| n.to_string_lossy().into_owned());
-                let body = if what == Replace::New {
+                let body = if matches!(what, Replace::New | Replace::NewWithImport) {
                     crate::tf!("{} has changes that are not saved. Starting a new document without saving loses them.", file)
                 } else {
                     crate::tf!("{} has changes that are not saved. Opening another file without saving loses them.", file)
@@ -1782,7 +1886,7 @@ impl EditorApp {
                     use crate::theme::{Emphasis, dialog_button};
                     ui.set_width(crate::theme::DIALOG_WIDTH);
                     crate::theme::dialog_title(ui, tr("Save your changes first?"), &body);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    crate::theme::dialog_buttons(ui, |ui| {
                         if ui.add(dialog_button(tr("Save"), Emphasis::Primary)).on_hover_text("Enter").clicked() {
                             self.save_then_replace(what);
                         }
@@ -1802,7 +1906,7 @@ impl EditorApp {
                     use crate::theme::{Emphasis, dialog_button};
                     ui.set_width(crate::theme::DIALOG_WIDTH);
                     crate::theme::dialog_title(ui, tr("Save your changes before quitting?"), &crate::tf!("{} has changes that are not saved. Quitting without saving loses them.", file));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    crate::theme::dialog_buttons(ui, |ui| {
                         if ui.add(dialog_button(tr("Save and quit"), Emphasis::Primary)).on_hover_text("Enter").clicked() {
                             self.save();
                             if !self.dirty() {
@@ -1950,7 +2054,8 @@ impl EditorApp {
         match opts.dialog.as_deref() {
             Some("gif") => crate::dialogs::export_gif(&mut app),
             Some("gif-progress") => crate::export::preview_progress(&mut app),
-            Some("psd") => app.dialog = Dialog::PsdSplit(crate::import::PendingImport { files: vec![], at: [0.0, 0.0], bone: None, split: Default::default() }),
+            Some("psd") => app.dialog = Dialog::PsdSplit(crate::import::PendingImport { files: vec![], at: [0.0, 0.0], bone: None, split: Default::default(), hidden: Default::default() }),
+            Some("import-target") => app.dialog = Dialog::ImportTarget(vec![]),
             Some("close") => app.dialog = Dialog::ConfirmClose,
             Some("replace") => app.dialog = Dialog::ConfirmReplace(Replace::Open),
             Some("mesh") => crate::dialogs::selected_mesh_options(&mut app),
@@ -2053,7 +2158,7 @@ impl eframe::App for EditorApp {
         // never be able to grow it frame after frame and squeeze the viewport.
         egui::Panel::right("side").resizable(true).default_size(crate::theme::SIDE_W).size_range(300.0..=560.0).show(ui, |ui| crate::panels::side(self, ui));
         if self.step == crate::steps::Step::Animate {
-            egui::Panel::bottom("timeline").resizable(true).default_size(260.0).size_range(150.0..=600.0).show(ui, |ui| crate::timeline::ui(self, ui));
+            egui::Panel::bottom("timeline_panel").resizable(true).default_size(320.0).size_range(150.0..=600.0).show(ui, |ui| crate::timeline::ui(self, ui));
         }
         egui::CentralPanel::default().show(ui, |ui| crate::viewport::ui(self, ui));
 
@@ -2088,6 +2193,20 @@ mod step_tests {
             Op::AddAnimation { name: "idle".into(), duration: Some(1.0) },
         ]).unwrap();
         EditorApp::test_app(doc, std::env::temp_dir().join("skel2d-step-test.skel.json"))
+    }
+
+    #[test]
+    fn r_toggles_auto_key_only_in_the_animate_step() {
+        let mut app = app();
+        let on = app.settings.auto_key;
+        app.step = Step::Bones;
+        press(&mut app, Key::R);
+        assert_eq!(app.settings.auto_key, on, "other steps have nothing to key");
+        app.step = Step::Animate;
+        press(&mut app, Key::R);
+        assert_eq!(app.settings.auto_key, !on);
+        press(&mut app, Key::R);
+        assert_eq!(app.settings.auto_key, on);
     }
 
     #[test]
@@ -2165,6 +2284,31 @@ mod step_tests {
         assert_eq!(app.step, Step::Animate, "no setup tools while animating");
         assert!(!app.status.is_empty(), "and it says why");
         assert!(app.playback.anim.is_some());
+    }
+
+    #[test]
+    fn importing_into_a_document_with_slots_asks_where_the_images_go() {
+        let dir = std::env::temp_dir().join(format!("skel2d_import_target_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let png = dir.join("arm.png");
+        tiny_skia::Pixmap::new(4, 4).unwrap().save_png(&png).unwrap();
+
+        let mut app = app();
+        crate::import::import_picked(&mut app, vec![png.clone()]);
+        assert!(matches!(app.dialog, Dialog::None), "an empty document just takes them");
+        assert_eq!(app.doc.slots.len(), 1);
+
+        crate::import::import_picked(&mut app, vec![png.clone()]);
+        assert!(matches!(app.dialog, Dialog::ImportTarget(_)));
+        assert_eq!(app.doc.slots.len(), 1, "nothing is added before the answer");
+
+        app.dialog = Dialog::None;
+        app.import_after_new = vec![png];
+        app.run_replace(Replace::NewWithImport);
+        assert_eq!(app.doc.slots.len(), 1, "the new project holds only the import");
+        assert!(app.path.is_none());
+        assert!(app.import_after_new.is_empty());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

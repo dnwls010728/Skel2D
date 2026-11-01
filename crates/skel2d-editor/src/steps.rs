@@ -45,11 +45,11 @@ impl Step {
     /// Tools that make sense in this step; the others are not offered.
     pub fn tools(self) -> &'static [Tool] {
         match self {
-            Step::Bones => &[Tool::Select, Tool::Bone, Tool::Translate, Tool::Rotate, Tool::Scale],
+            Step::Bones => &[Tool::Select, Tool::Bone, Tool::Translate, Tool::Rotate, Tool::Scale, Tool::Shear],
             Step::Images => &[Tool::Select, Tool::Translate, Tool::Rotate, Tool::Scale],
             Step::Mesh => &[Tool::Mesh],
             Step::Weights => &[Tool::Weights],
-            Step::Animate => &[Tool::Select, Tool::Translate, Tool::Rotate, Tool::Scale],
+            Step::Animate => &[Tool::Select, Tool::Translate, Tool::Rotate, Tool::Scale, Tool::Shear],
         }
     }
 
@@ -249,6 +249,7 @@ pub fn guide(app: &EditorApp) -> String {
             Tool::Rotate => tr("Drag to rotate the selected bone.").into(),
             Tool::Translate => tr("Drag to move the selected bone.").into(),
             Tool::Scale => tr("Drag to scale the selected bone.").into(),
+            Tool::Shear => tr("Drag to skew the selected bone.").into(),
             _ => tr("Click a bone to select it. Drag it to move it, or its tip to rotate it.").into(),
         },
         Step::Images => tr("Pick a slot in the list. Drop PNG files on the viewport or press Load images to add more.").into(),

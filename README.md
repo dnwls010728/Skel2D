@@ -61,7 +61,7 @@ skel2d schema ops                                    # JSON Schema of ops ("docu
 skel2d serve hero.skel2d.json --port 7878            # HTTP API on 127.0.0.1 (default port 7878)
 skel2d mcp hero.skel2d.json                          # MCP server on stdio (for AI agents)
 ```
-Every document has a locked `root` bone: `skel2d new` starts with it, loading an older file without one adds it, `add_bone` without `parent` puts the bone under root, and root cannot be removed, renamed or given a parent. An `add_bone` named `root` on a document that already has one only overwrites its values (so the quick start above works as written).
+Every document has a `root` bone: `skel2d new` starts with it, loading an older file without one adds it, `add_bone` without `parent` puts the bone under root, and root cannot be removed, renamed or given a parent. An `add_bone` named `root` on a document that already has one only overwrites its values (so the quick start above works as written).
 
 Render options: `--width/--height` (default 512, max 4096), `--zoom` (pixels per unit; auto-fit if omitted), `--center X,Y` (world point at the image center, for close-ups with `--zoom`), `--no-bones`, `--frames N` (1..64, needs `--anim` or `--track`), `--track NAME[@SECONDS]` (repeatable, see Face poses and layered animation).
 
@@ -139,10 +139,10 @@ Also available over MCP as `skel2d_image_info` and `skel2d_rig`. See [docs/AI_GU
 - Default without `mesh`/`bone`: a layer covering at least 1.5% of all visible pixels becomes a weighted mesh (weights flow only through its own pixels), smaller ones are regions on the nearest bone.
 - `variants` are extra attachments of the same slot (closed eyes, mouth shapes). A variant defaults to the layer's center and scale; it may set `center` or `x`+`y`, and `scale`.
 
-`skel2d psd` splits a layered Photoshop file: every top-level group becomes one part (its layers composited, e.g. line art over flat color), and an ungrouped layer is a part of its own; with `--layers` every layer is a part and groups only organize them (one part per layer). Hidden layers are included; a paper background layer (`용지`/`Paper`/`用紙`) is skipped. It writes one cropped PNG per part, `layers.json` (back to front, canvas `x`/`y`) and `composite.png` (all parts, for `image-info --grid` when placing joints). Add `bone`/`bones`/`mesh` to the manifest, then rig it.
+`skel2d psd` splits a layered Photoshop file: every top-level group becomes one part (its layers composited, e.g. line art over flat color), and an ungrouped layer is a part of its own; with `--layers` every layer is a part and groups only organize them (one part per layer); with `--inner-groups` every innermost group is a part. A layer tagged `[origin]` or the first guides set the origin (else the canvas center). Hidden layers are included unless you pass `--skip-hidden`; a clipped layer is painted onto its base, not made a part; a paper background layer (`용지`/`Paper`/`用紙`) is skipped. It writes one cropped PNG per part, `layers.json` (back to front, canvas `x`/`y`) and `composite.png` (all parts, for `image-info --grid` when placing joints). Add `bone`/`bones`/`mesh` to the manifest, then rig it.
 
 ```
-skel2d psd character.psd -o parts --exclude reference   # --exclude skips a group or layer (repeatable), --layers: one part per layer
+skel2d psd character.psd -o parts --exclude reference   # --exclude skips a group or layer (repeatable), --layers: one part per layer, --inner-groups: one part per innermost group, --skip-hidden: leave out hidden layers
 ```
 
 Example: `examples/skins` (one skeleton, three outfits knight / mage / ranger as skins, animations idle, walk and wave; see its README.txt). Example: `examples/miya` (PSD with arms and legs as one weighted mesh each, hands, feet and head rigid on their bones):
@@ -202,6 +202,8 @@ skel2d render face.skel.json -o close.png --track face/sad --center 0,1250 --zoo
 
 `--track NAME@T` fixes the track's time; without `@` it follows the frame time, looping over its own duration. Frames span the main animation (or the longest track).
 
+Example: `examples/clipping` (a potion bottle: the `liquid` and `shine` slots clip to `bottle` and move on their own bones; animations `slosh`, `shine`, `idle`).
+
 Example: `examples/face` (layered face with face poses `face/happy`, `face/angry`, `face/sad` and `blink` / `talk` animations):
 
 ```
@@ -218,7 +220,7 @@ cargo run --release -p skel2d-editor -- path/to/file.skel.json
 
 The editor is organized by what you are doing. Five numbered steps run along the top (keys `1` to `5`); the left column shows the tools of the step, the right column the step's list and the panel of the picked item, and a line over the viewport says what you can do right now.
 
-1. **Bones**: draw the skeleton. Tools: Select (B), New bone (N), Move (V), Rotate (C), Scale (X). The list is the bone tree; `root` is always on top and locked (it cannot be deleted, renamed or moved; every other bone hangs under it). New bones go under the selected bone, or under root. Groups in the bone panel add *Follow target (IK)* and *Jiggle (physics)*.
+1. **Bones**: draw the skeleton. Tools: Select (B), New bone (N), Move (V), Rotate (C), Scale (X). The list is the bone tree; `root` is always on top (it cannot be deleted, renamed or given a parent, but it can be moved, rotated, scaled and keyed; every other bone hangs under it). New bones go under the selected bone, or under root. Groups in the bone panel add *Follow target (IK)* and *Jiggle (physics)*.
 2. **Images**: load PNG/PSD files (button, File menu, or drop them on the viewport). The list is the slots in front-to-back order with thumbnails; drag to reorder. A slot shows one image at a time but can hold many: the slot panel lists them as cards (thumbnail, name, kind, *Showing*), **Add images** adds more PNGs to the slot, and each card has a menu (rename, replace the file, make a mesh, delete). The *Outfits (skin)* group previews and manages skins.
 3. **Mesh**: pick an image. A *Picture* shows "not a mesh yet" and **Make mesh** opens the live-preview dialog; a *Shared mesh* offers **Go to parent mesh**; a mesh gets the modes Move / Add / Delete / Fold line (each explained), vertex actions, rebuild and *Make shared mesh*.
 4. **Weights**: **Set weights automatically** first, then the bound bones with their percentage and lock, the brush (Add / Remove / Replace, size, strength), a "bend a bone to test" check (Alt+drag), and smooth / copy / paste / clean up / swap / transfer / mirror.
@@ -243,6 +245,7 @@ Animations export to looping GIFs from the editor (File > Export GIF..., `Ctrl+E
 
 ```
 skel2d gif hero.skel.json -o walk.gif --anim walk --gif-fps 25 --fit 400x400
+skel2d sheet hero.skel.json -o walk.png --anim walk --gif-fps 30 --columns 8 --padding 2 --transparent  # PNG plus walk.json (frames array)
 skel2d gif hero.skel.json -o out --all-animations --skin knight       # one file per animation, -o is a folder
 skel2d gif hero.skel.json -o out --all-skins --anim idle              # one file per skin
 skel2d gif hero.skel.json -o f.gif --anim walk --track blink --transparent --background 202020

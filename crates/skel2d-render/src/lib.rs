@@ -6,7 +6,7 @@ mod gif;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-pub use gif::{GifJob, GifOptions, GifStats, MAX_GIF_FPS, gif_frame_count, gif_plan, render_gif, safe_file_name};
+pub use gif::{GifJob, GifOptions, GifStats, MAX_GIF_FPS, MAX_SHEET_FPS, SheetOptions, gif_frame_count, gif_plan, render_gif, render_sheet, safe_file_name, sheet_frame_count};
 
 use skel2d_core::{Affine, Attachment, BlendMode, Document, Pose};
 use tiny_skia::{
@@ -130,6 +130,56 @@ impl Renderer {
         b
     }
 
+    /// Draws one slot onto `pm` with `blend`, ignoring its clip.
+    fn draw_slot(&mut self, pm: &mut Pixmap, doc: &Document, pose: &Pose, si: usize, view: &Affine, blend: BlendMode) {
+        let (slot, sp) = (&doc.slots[si], &pose.slots[si]);
+        let Some(att) = pose.attachment(doc, si) else { return };
+        let Some(materialized) = doc.materialize_attachment(si, att) else { return };
+        let att = &materialized;
+        let Some(bi) = doc.bone_index(&slot.bone) else { return };
+        let region = match att {
+            Attachment::Region(r) => r,
+            Attachment::Mesh(mesh) => {
+                let points: Vec<[f32; 2]> =
+                    pose.deform_mesh(doc, mesh, si).into_iter().map(|[x, y]| view.apply(x, y)).collect();
+                let image = mesh.image.as_deref().and_then(|p| self.image(p)).map(|img| {
+                    if sp.color.is_white() { img.clone() } else { tinted(img, sp.color.r, sp.color.g, sp.color.b, sp.color.a) }
+                });
+                draw_mesh(pm, mesh, &points, image.as_ref(), sp.color.to_rgba8(), blend_mode(blend));
+                return;
+            }
+            Attachment::LinkedMesh(_) => unreachable!(),
+        };
+        let local = Affine::from_trs(region.x, region.y, region.rotation, region.scale_x, region.scale_y);
+        let world = view.mul(&pose.bones[bi].world).mul(&local);
+        let tint = sp.color.to_rgba8();
+
+        match region.image.as_deref().and_then(|p| self.image(p)) {
+            Some(img) => {
+                let (iw, ih) = (img.width() as f32, img.height() as f32);
+                // Image pixels are y-down with origin at the top-left; map them
+                // onto a width x height rectangle centered on the attachment.
+                let to_local = Affine {
+                    a: region.width / iw,
+                    b: 0.0,
+                    c: 0.0,
+                    d: -region.height / ih,
+                    tx: -region.width / 2.0,
+                    ty: region.height / 2.0,
+                };
+                let m = world.mul(&to_local);
+                let paint = PixmapPaint { quality: FilterQuality::Bilinear, blend_mode: blend_mode(blend), ..PixmapPaint::default() };
+                if tint == [255; 4] {
+                    pm.draw_pixmap(0, 0, img.as_ref(), &paint, to_ts(&m), None);
+                } else {
+                    let tinted = tinted(img, sp.color.r, sp.color.g, sp.color.b, sp.color.a);
+                    pm.draw_pixmap(0, 0, tinted.as_ref(), &paint, to_ts(&m), None);
+                }
+            }
+            None => draw_placeholder(pm, &world, region.width, region.height, tint),
+        }
+    }
+
     /// Renders one pose. `fit` overrides the bounds used for auto framing,
     /// so a sequence of frames can share one camera.
     pub fn render(&mut self, doc: &Document, pose: &Pose, opts: &RenderOptions, fit: Option<Bounds>) -> Pixmap {
@@ -143,53 +193,25 @@ impl Renderer {
             draw_axes(&mut pm, &view);
         }
 
+        // A clipped slot is drawn on its own, then cut by its base's rendered alpha.
+        let mut masks: std::collections::HashMap<usize, Pixmap> = std::collections::HashMap::new();
         for &si in &pose.draw_order {
-            let (slot, sp) = (&doc.slots[si], &pose.slots[si]);
-            let Some(att) = pose.attachment(doc, si) else { continue };
-            let Some(materialized) = doc.materialize_attachment(si, att) else { continue };
-            let att = &materialized;
-            let Some(bi) = doc.bone_index(&slot.bone) else { continue };
-            let region = match att {
-                Attachment::Region(r) => r,
-                Attachment::Mesh(mesh) => {
-                    let points: Vec<[f32; 2]> =
-                        pose.deform_mesh(doc, mesh, si).into_iter().map(|[x, y]| view.apply(x, y)).collect();
-                    let image = mesh.image.as_deref().and_then(|p| self.image(p)).map(|img| {
-                        if sp.color.is_white() { img.clone() } else { tinted(img, sp.color.r, sp.color.g, sp.color.b, sp.color.a) }
-                    });
-                    draw_mesh(&mut pm, mesh, &points, image.as_ref(), sp.color.to_rgba8(), blend_mode(slot.blend));
-                    continue;
-                }
-                Attachment::LinkedMesh(_) => unreachable!(),
+            let slot = &doc.slots[si];
+            let Some(base) = slot.clip.as_deref().and_then(|c| doc.slot_index(c)) else {
+                self.draw_slot(&mut pm, doc, pose, si, &view, slot.blend);
+                continue;
             };
-            let local = Affine::from_trs(region.x, region.y, region.rotation, region.scale_x, region.scale_y);
-            let world = view.mul(&pose.bones[bi].world).mul(&local);
-            let tint = sp.color.to_rgba8();
-
-            match region.image.as_deref().and_then(|p| self.image(p)) {
-                Some(img) => {
-                    let (iw, ih) = (img.width() as f32, img.height() as f32);
-                    // Image pixels are y-down with origin at the top-left; map them
-                    // onto a width x height rectangle centered on the attachment.
-                    let to_local = Affine {
-                        a: region.width / iw,
-                        b: 0.0,
-                        c: 0.0,
-                        d: -region.height / ih,
-                        tx: -region.width / 2.0,
-                        ty: region.height / 2.0,
-                    };
-                    let m = world.mul(&to_local);
-                    let paint = PixmapPaint { quality: FilterQuality::Bilinear, blend_mode: blend_mode(slot.blend), ..PixmapPaint::default() };
-                    if tint == [255; 4] {
-                        pm.draw_pixmap(0, 0, img.as_ref(), &paint, to_ts(&m), None);
-                    } else {
-                        let tinted = tinted(img, sp.color.r, sp.color.g, sp.color.b, sp.color.a);
-                        pm.draw_pixmap(0, 0, tinted.as_ref(), &paint, to_ts(&m), None);
-                    }
-                }
-                None => draw_placeholder(&mut pm, &world, region.width, region.height, tint),
-            }
+            let mask = masks.entry(base).or_insert_with(|| {
+                let mut mask = Pixmap::new(w, h).expect("non-zero size");
+                self.draw_slot(&mut mask, doc, pose, base, &view, BlendMode::Normal);
+                mask
+            });
+            let mut layer = Pixmap::new(w, h).expect("non-zero size");
+            self.draw_slot(&mut layer, doc, pose, si, &view, BlendMode::Normal);
+            let cut = PixmapPaint { blend_mode: tiny_skia::BlendMode::DestinationIn, ..PixmapPaint::default() };
+            layer.draw_pixmap(0, 0, mask.as_ref(), &cut, Transform::identity(), None);
+            let over = PixmapPaint { blend_mode: blend_mode(slot.blend), ..PixmapPaint::default() };
+            pm.draw_pixmap(0, 0, layer.as_ref(), &over, Transform::identity(), None);
         }
 
         if opts.draw_bones {
@@ -447,6 +469,48 @@ mod tests {
         )
         .unwrap();
         apply(&Document::new("t"), &ops).unwrap()
+    }
+
+    #[test]
+    fn the_clipping_example_stays_inside_its_bottle_while_it_moves() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/clipping");
+        let doc = skel2d_core::load(&dir.join("clipping.skel.json")).unwrap();
+        assert!(skel2d_core::validate(&doc).is_empty());
+        let free = apply(&doc, &parse_ops(r#"[{"op":"set_slot","name":"liquid","clip":null},{"op":"set_slot","name":"shine","clip":null}]"#).unwrap()).unwrap();
+        let opts = RenderOptions { width: 800, height: 800, background: [0, 0, 0, 0], zoom: Some(1.0), center: Some([0.0, 0.0]), draw_bones: false, draw_axes: false, ..RenderOptions::default() };
+        // Left of the bottle's body, where the liquid band reaches when it tilts.
+        let (x, y) = (400 - 260, 400 + 150);
+        for time in [0.0, 0.5, 1.0, 1.5] {
+            let pose = |d: &Document| Pose::compute(d, Some((&d.animations["slosh"], time)));
+            let mut r = Renderer::new(&dir);
+            assert!(r.render(&free, &pose(&free), &opts, None).pixel(x, y).unwrap().alpha() > 0, "at {time} the band reaches past the bottle");
+            let shown = r.render(&doc, &pose(&doc), &opts, None);
+            assert_eq!(shown.pixel(x, y).unwrap().alpha(), 0, "at {time} the clip stops it");
+            assert!(shown.pixel(400, 400 + 200).unwrap().alpha() > 0, "the bottle shows");
+            assert!(r.missing_images.is_empty(), "{:?}", r.missing_images);
+        }
+    }
+
+    #[test]
+    fn a_clipped_slot_shows_only_inside_its_base() {
+        let ops = parse_ops(
+            r##"[{"op":"add_bone","name":"root"},
+                {"op":"add_slot","name":"base","bone":"root","attachment":"r","attachments":[{"type":"region","name":"r","width":20,"height":20}]},
+                {"op":"add_slot","name":"shade","bone":"root","clip":"base","color":"#0000ff","attachment":"r","attachments":[{"type":"region","name":"r","width":60,"height":60}]}]"##,
+        )
+        .unwrap();
+        let clipped = apply(&Document::new("t"), &ops).unwrap();
+        let free = apply(&clipped, &parse_ops(r#"{"op":"set_slot","name":"shade","clip":null}"#).unwrap()).unwrap();
+        // World units map 1:1, centered, so x=50 is inside the base and x=25 outside it.
+        let opts = RenderOptions { width: 100, height: 100, background: [0, 0, 0, 0], zoom: Some(1.0), center: Some([0.0, 0.0]), draw_bones: false, draw_axes: false, ..RenderOptions::default() };
+        let render = |d: &Document| {
+            let mut r = Renderer::new(".");
+            r.render(d, &Pose::compute(d, None), &opts, None)
+        };
+        let (a, b) = (render(&clipped), render(&free));
+        assert!(b.pixel(25, 50).unwrap().alpha() > 0, "unclipped it reaches past the base");
+        assert_eq!(a.pixel(25, 50).unwrap().alpha(), 0, "clipped it stops at the base");
+        assert!(a.pixel(50, 50).unwrap().blue() > a.pixel(50, 50).unwrap().red(), "and shows inside it");
     }
 
     #[test]

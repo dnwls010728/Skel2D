@@ -21,8 +21,8 @@ pub use stepui::{side, step_bar, tools};
 #[cfg(test)]
 pub(crate) use stepui::tests as stepui_tests;
 
-/// Why root cannot be removed, renamed or moved (shown wherever root is offered).
-pub(crate) const ROOT_REASON: &str = "Root is the base of the skeleton: every bone hangs under it, so it cannot be deleted, renamed or moved.";
+/// Why root cannot be removed, renamed or reparented (shown wherever root is offered).
+pub(crate) const ROOT_REASON: &str = "Root is the base of the skeleton: every bone hangs under it, so it cannot be deleted, renamed or given a parent. You can move, rotate and scale it.";
 
 const LABEL_W: f32 = theme::LABEL_W;
 const TIME_EPS: f32 = skel2d_core::ops::TIME_EPSILON;
@@ -82,6 +82,7 @@ fn add_slot(app: &mut EditorApp, bone: String) {
         bone,
         color: Color::WHITE,
         blend: Default::default(),
+        clip: None,
         attachment: Some("region".into()),
         attachments: vec![Attachment::Region(Region {
             name: "region".into(),
@@ -168,6 +169,8 @@ fn select_constraint(app: &mut EditorApp, tc: &mut TreeCtx, badge: &Badge) {
 
 #[derive(Default)]
 struct TreeCtx {
+    /// The pose the rows read what they show from, computed once per tree.
+    pose: Option<skel2d_core::Pose>,
     /// Constraint badges per bone name (only in the steps that have constraint inspectors).
     badges: std::collections::HashMap<String, Vec<Badge>>,
     navigation: Vec<crate::dialogs::Item>,
@@ -426,7 +429,7 @@ pub fn tree(app: &mut EditorApp, ui: &mut egui::Ui) {
         set
     });
     let badges = if matches!(app.step, crate::steps::Step::Bones | crate::steps::Step::Animate) { constraint_badges(&app.doc) } else { Default::default() };
-    let mut tc = TreeCtx { badges, navigation: Vec::new(), collapsed, visible, drop: None, query: q.clone(), show_slots: false, row: 0, reveal: None };
+    let mut tc = TreeCtx { pose: None, badges, navigation: Vec::new(), collapsed, visible, drop: None, query: q.clone(), show_slots: false, row: 0, reveal: None };
 
     // A selection made elsewhere (viewport, palette) unfolds its ancestors
     // and scrolls its row into view, so the tree never hides what is selected.
@@ -511,7 +514,7 @@ fn search_box(ui: &mut egui::Ui, filter: &mut String) {
             if ui.input(|i| i.key_pressed(egui::Key::Escape)) && r.has_focus() {
                 filter.clear();
             }
-            if !filter.is_empty() && ui.add(egui::Button::new("×").frame(false)).on_hover_text(tr("Clear filter")).clicked() {
+            if !filter.is_empty() && ui.add(crate::icons::small(crate::icons::Icon::Close).frame(false)).on_hover_text(tr("Clear filter")).clicked() {
                 filter.clear();
             }
         });
@@ -524,30 +527,30 @@ fn tab_actions(app: &mut EditorApp, ui: &mut egui::Ui) {
     use crate::steps::Step;
     match app.step {
         Step::Bones => {
-            if ui.button(tr("New bone under the selected bone")).clicked() {
+            if ui.add(crate::icons::labeled(crate::icons::Icon::Bone, tr("New bone under the selected bone"))).clicked() {
                 add_bone_under_selection(app);
                 ui.close();
             }
-            if ui.add_enabled(app.selection.bone.is_some(), egui::Button::new(tr("Add slot on the selected bone"))).clicked()
+            if ui.add_enabled(app.selection.bone.is_some(), crate::icons::labeled(crate::icons::Icon::Slot, tr("Add slot on the selected bone"))).clicked()
                 && let Some(bone) = app.selection.bone.clone()
             {
                 add_slot(app, bone);
                 ui.close();
             }
             let tip = tr("Constrain the selected bone (and its parent) to a new target bone");
-            if ui.add_enabled(app.selection.bone.is_some(), egui::Button::new(tr("Add IK on the selected bone"))).on_hover_text(tip).clicked()
+            if ui.add_enabled(app.selection.bone.is_some(), crate::icons::labeled(crate::icons::Icon::Constraint, tr("Add IK on the selected bone"))).on_hover_text(tip).clicked()
                 && let Some(bone) = app.selection.bone.clone()
             {
                 add_ik(app, &bone);
                 ui.close();
             }
             let tip = tr("Make the selected bone lag behind its animated pose on a damped spring");
-            if ui.add_enabled(app.selection.bone.is_some(), egui::Button::new(tr("Add physics on the selected bone"))).on_hover_text(tip).clicked() {
+            if ui.add_enabled(app.selection.bone.is_some(), crate::icons::labeled(crate::icons::Icon::Physics, tr("Add physics on the selected bone"))).on_hover_text(tip).clicked() {
                 crate::dialogs::new_physics(app, app.selection.bone.clone());
                 ui.close();
             }
             ui.separator();
-            if ui.button(tr("Show all bones")).clicked() {
+            if ui.add(crate::icons::labeled(crate::icons::Icon::Eye, tr("Show all bones"))).clicked() {
                 app.hidden_bones.clear();
                 app.locked_bones.clear();
                 ui.close();
@@ -556,14 +559,14 @@ fn tab_actions(app: &mut EditorApp, ui: &mut egui::Ui) {
         Step::Images | Step::Mesh | Step::Weights => {
             import_button(app, ui);
             ui.separator();
-            if ui.button(tr("Show all slots")).clicked() {
+            if ui.add(crate::icons::labeled(crate::icons::Icon::Eye, tr("Show all slots"))).clicked() {
                 app.hidden_slots.clear();
                 app.locked_slots.clear();
                 ui.close();
             }
         }
         Step::Animate => {
-            if ui.button(tr("New animation")).clicked() {
+            if ui.add(crate::icons::labeled(crate::icons::Icon::Animation, tr("New animation"))).clicked() {
                 new_animation(app);
                 ui.close();
             }
@@ -578,7 +581,7 @@ pub(crate) fn add_bone_under_selection(app: &mut EditorApp) {
 }
 
 fn import_button(app: &mut EditorApp, ui: &mut egui::Ui) {
-    if ui.button(tr("Import images...")).on_hover_text(tr("Add PNG images or a layered PSD as slots on the selected bone (or drop files on the viewport)")).clicked() {
+    if ui.add(crate::icons::labeled(crate::icons::Icon::Import, tr("Import images..."))).on_hover_text(tr("Add PNG images or a layered PSD as slots on the selected bone (or drop files on the viewport)")).clicked() {
         ui.close();
         let files = crate::import::pick_images();
         if !files.is_empty() {
@@ -679,7 +682,7 @@ fn constraints_view(app: &mut EditorApp, ui: &mut egui::Ui, tc: &mut TreeCtx) {
             app.selection.ik = Some(name.clone());
         }
         r.context_menu(|ui| {
-            if ui.button(tr("Rename")).clicked() {
+            if ui.add(crate::icons::labeled(crate::icons::Icon::Rename, tr("Rename"))).clicked() {
                 crate::dialogs::rename(app, crate::dialogs::Item::Ik(name.clone()));
                 ui.close();
             }
@@ -718,7 +721,7 @@ fn transform_row(app: &mut EditorApp, ui: &mut egui::Ui, tc: &mut TreeCtx, index
         app.selection = crate::app::Selection { transform: Some(name.clone()), ..Default::default() };
     }
     r.context_menu(|ui| {
-        if ui.button(format!("{}    F2", tr("Rename"))).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Rename, format!("{}    F2", tr("Rename")))).clicked() {
             crate::dialogs::rename(app, crate::dialogs::Item::Transform(name.clone()));
             ui.close();
         }
@@ -746,7 +749,7 @@ fn physics_row(app: &mut EditorApp, ui: &mut egui::Ui, tc: &mut TreeCtx, index: 
         app.selection = crate::app::Selection { physics: Some(name.clone()), ..Default::default() };
     }
     r.context_menu(|ui| {
-        if ui.button(format!("{}    F2", tr("Rename"))).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Rename, format!("{}    F2", tr("Rename")))).clicked() {
             crate::dialogs::rename(app, crate::dialogs::Item::Physics(name.clone()));
             ui.close();
         }
@@ -754,7 +757,7 @@ fn physics_row(app: &mut EditorApp, ui: &mut egui::Ui, tc: &mut TreeCtx, index: 
             app.selection = crate::app::Selection { bone: Some(c.bone.clone()), ..Default::default() };
             ui.close();
         }
-        if ui.button(tr("Shake")).on_hover_text(tr("Kicks this constraint so you can judge the settings. A preview only; the document is not changed.")).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Physics, tr("Shake"))).on_hover_text(tr("Kicks this constraint so you can judge the settings. A preview only; the document is not changed.")).clicked() {
             app.physics_shake(&name);
             ui.close();
         }
@@ -788,11 +791,11 @@ fn animations_view(app: &mut EditorApp, ui: &mut egui::Ui, tc: &mut TreeCtx) {
             }
         }
         r.context_menu(|ui| {
-            if ui.button(tr("Rename")).clicked() {
+            if ui.add(crate::icons::labeled(crate::icons::Icon::Rename, tr("Rename"))).clicked() {
                 crate::dialogs::rename(app, crate::dialogs::Item::Animation(name.clone()));
                 ui.close();
             }
-            if ui.button(tr("Duplicate")).clicked() {
+            if ui.add(crate::icons::labeled(crate::icons::Icon::Duplicate, tr("Duplicate"))).clicked() {
                 crate::dialogs::duplicate_animation(app, &name);
                 ui.close();
             }
@@ -827,6 +830,8 @@ struct RowSpec<'a> {
     /// `Some(shown)`: Spine's attachment dot before the icon.
     dot: Option<bool>,
     draggable: bool,
+    /// The slot this one clips to: a mark before the name, naming it on hover.
+    clip: Option<String>,
     /// A small number before the icon (draw order position).
     index: Option<usize>,
     /// Row height; `None` is the normal list row.
@@ -852,7 +857,7 @@ struct KeyBtn {
 
 impl Default for RowSpec<'_> {
     fn default() -> Self {
-        Self { key: String::new(), depth: 0, expander: None, kind: NodeKind::Bone, name: "", color: TEXT, meta: String::new(), selected: false, accent: ACCENT, eye: None, lock: None, dot: None, draggable: false, index: None, height: None, lead: 0.0, icon_color: None, keys: [None; 2], badges: &[] }
+        Self { clip: None, key: String::new(), depth: 0, expander: None, kind: NodeKind::Bone, name: "", color: TEXT, meta: String::new(), selected: false, accent: ACCENT, eye: None, lock: None, dot: None, draggable: false, index: None, height: None, lead: 0.0, icon_color: None, keys: [None; 2], badges: &[] }
     }
 }
 
@@ -1090,6 +1095,12 @@ fn tree_row(ui: &mut egui::Ui, tc: &mut TreeCtx, s: RowSpec) -> RowOut {
         }
     }
 
+    if let Some(base) = &s.clip {
+        let r = egui::Rect::from_center_size(egui::pos2(x + 8.0, cy), egui::vec2(16.0, 16.0));
+        crate::icons::image(crate::icons::Icon::Clip, 14.0).tint(theme::SLOT).paint_at(ui, r);
+        ui.interact(r, ui.scope_id().with(("clip", &s.key)), egui::Sense::hover()).on_hover_text(crate::tf!("Clipped to {}", base));
+        x += 20.0;
+    }
     // The name comes first; the meta only gets what is left.
     let room = (right - 6.0 - x).max(0.0);
     let name_full = p.layout_no_wrap(s.name.to_string(), egui::FontId::proportional(theme::SIZE_BODY), name_color_of(&s)).size().x;
@@ -1125,7 +1136,7 @@ fn slot_row(app: &mut EditorApp, ui: &mut egui::Ui, name: &str, bone: &str, posi
     let shown = slot.as_ref().and_then(|s| shown_attachment(app, s));
     let kind = shown.as_ref().map_or(tr("(hidden)"), |a| tr(stepui::kind_name(a)));
     let height = theme::THUMB_SMALL + 8.0;
-    let out = tree_row(ui, tc, RowSpec { key: format!("slot:{name}"), kind: NodeKind::Slot, name, color, meta: if matches!(shown, Some(Attachment::Region(_))) { bone.to_string() } else { format!("{bone} · {kind}") }, selected, eye: Some(!hidden), lock: Some(locked), draggable: true, index: Some(position), height: Some(height), lead: theme::THUMB_SMALL + 8.0, ..Default::default() });
+    let out = tree_row(ui, tc, RowSpec { key: format!("slot:{name}"), kind: NodeKind::Slot, clip: slot.as_ref().and_then(|s| s.clip.clone()), name, color, meta: if matches!(shown, Some(Attachment::Region(_))) { bone.to_string() } else { format!("{bone} · {kind}") }, selected, eye: Some(!hidden), lock: Some(locked), draggable: true, index: Some(position), height: Some(height), lead: theme::THUMB_SMALL + 8.0, ..Default::default() });
     if let Some(slot) = &slot {
         let rect = egui::Rect::from_min_size(egui::pos2(out.rect.left() + 50.0, out.rect.top() + 4.0), egui::vec2(theme::THUMB_SMALL, theme::THUMB_SMALL));
         stepui::thumb(app, ui, slot, shown.as_ref(), rect);
@@ -1242,23 +1253,23 @@ fn bone_row(app: &mut EditorApp, ui: &mut egui::Ui, name: &str, depth: usize, tc
         app.selection.ik = None;app.selection.physics = None;app.selection.transform = None;
     }
     r.context_menu(|ui| {
-        if ui.button(tr("Add child bone")).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Bone, tr("Add child bone"))).clicked() {
             add_bone(app, Some(name.to_string()));
             ui.close();
         }
-        if ui.button(tr("Add slot")).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Slot, tr("Add slot"))).clicked() {
             add_slot(app, name.to_string());
             ui.close();
         }
-        if ui.button(tr("Import images onto this bone...")).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Import, tr("Import images onto this bone..."))).clicked() {
             ui.close();
             import_onto_bone(app, name);
         }
-        if ui.button(tr("Add IK constraint")).on_hover_text(tr("Constrain this bone (and its parent) to a new target bone")).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Constraint, tr("Add IK constraint"))).on_hover_text(tr("Constrain this bone (and its parent) to a new target bone")).clicked() {
             add_ik(app, name);
             ui.close();
         }
-        if ui.button(tr("Add physics constraint")).on_hover_text(tr("Make this bone lag behind its animated pose on a damped spring")).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Physics, tr("Add physics constraint"))).on_hover_text(tr("Make this bone lag behind its animated pose on a damped spring")).clicked() {
             crate::dialogs::new_physics(app, Some(name.to_string()));
             ui.close();
         }
@@ -1267,7 +1278,7 @@ fn bone_row(app: &mut EditorApp, ui: &mut egui::Ui, name: &str, depth: usize, tc
         if is_root {
             ui.add(egui::Label::new(RichText::new(tr(ROOT_REASON)).size(theme::SIZE_SMALL).color(TEXT_DIM)).wrap());
         }
-        if ui.add_enabled(!is_root, egui::Button::new(format!("{}    F2", tr("Rename")))).clicked() {
+        if ui.add_enabled(!is_root, crate::icons::labeled(crate::icons::Icon::Rename, format!("{}    F2", tr("Rename")))).clicked() {
             start_rename(app, ui, name);
             ui.close();
         }
@@ -1348,6 +1359,7 @@ fn slot_node(app: &mut EditorApp, ui: &mut egui::Ui, name: &str, depth: usize, t
         depth,
         expander: (!single).then_some(!folded),
         kind: NodeKind::Slot,
+        clip: slot.clip.clone(),
         name,
         color,
         meta,
@@ -1392,9 +1404,8 @@ fn slot_node(app: &mut EditorApp, ui: &mut egui::Ui, name: &str, depth: usize, t
     if folded || single {
         return;
     }
-    let pose = app.pose();
     let si = app.doc.slot_index(name);
-    let shown = si.and_then(|i| pose.slots.get(i)).and_then(|s| s.attachment.clone());
+    let shown = si.and_then(|i| tc.pose.get_or_insert_with(|| app.pose()).slots.get(i)).and_then(|s| s.attachment.clone());
     for att in &slot.attachments {
         let a = att.name().to_string();
         let visible = shown.as_deref() == Some(a.as_str());
@@ -1481,7 +1492,82 @@ fn open_animation(app: &mut EditorApp, name: &str) {
 }
 
 /// Right-click actions of a slot, shared by its rows under the bone and in Draw Order.
+/// The slot a one-click clip goes to, like a Photoshop clipping mask: the one
+/// right behind this one, or that slot's own base when it is clipped itself.
+pub(crate) fn clip_below_target(doc: &skel2d_core::Document, name: &str) -> Option<String> {
+    let index = doc.slot_index(name)?;
+    let below = doc.slots.get(index.checked_sub(1)?)?;
+    let target = below.clip.clone().unwrap_or_else(|| below.name.clone());
+    (target != name).then_some(target)
+}
+
+/// Whether other slots clip to this one, which rules out clipping it.
+pub(crate) fn is_clip_base(doc: &skel2d_core::Document, name: &str) -> bool {
+    doc.slots.iter().any(|s| s.clip.as_deref() == Some(name))
+}
+
+/// Sets or removes a slot's clip and says what happened.
+pub(crate) fn set_clip(app: &mut EditorApp, name: &str, clip: Option<String>) {
+    let status = match &clip {
+        Some(base) => crate::tf!("{} now shows only inside {} · Ctrl+Z to undo", name, base),
+        None => crate::tf!("Removed the clip of {} · Ctrl+Z to undo", name),
+    };
+    if app.edit(vec![Op::SetSlot(SlotPatch { name: name.to_string(), clip: Some(clip), ..Default::default() })]) {
+        app.status = status;
+    }
+}
+
+/// The shortcut: clips the selected slot to the one behind it, or removes its clip.
+pub(crate) fn toggle_clip(app: &mut EditorApp) {
+    let Some(name) = app.selection.slot.clone().filter(|s| app.doc.slot(s).is_some()) else {
+        app.status = tr("Pick a slot first, then clip it").to_string();
+        return;
+    };
+    if app.doc.slot(&name).is_some_and(|s| s.clip.is_some()) {
+        set_clip(app, &name, None);
+    } else if is_clip_base(&app.doc, &name) {
+        app.status = tr("Other slots clip to this one, so it cannot be clipped").to_string();
+    } else if let Some(base) = clip_below_target(&app.doc, &name) {
+        set_clip(app, &name, Some(base));
+    } else {
+        app.status = tr("There is no slot behind this one to clip to").to_string();
+    }
+}
+
+/// Clipping entries of a slot's menus.
+fn clip_menu(app: &mut EditorApp, ui: &mut egui::Ui, name: &str) {
+    let current = app.doc.slot(name).and_then(|s| s.clip.clone());
+    if current.is_some() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Clip, format!("{}    Ctrl+Alt+G", tr("Remove clip")))).clicked() {
+            set_clip(app, name, None);
+            ui.close();
+        }
+        return;
+    }
+    if is_clip_base(&app.doc, name) {
+        ui.add_enabled(false, crate::icons::labeled(crate::icons::Icon::Clip, tr("Clip to the slot below"))).on_disabled_hover_text(tr("Other slots clip to this one, so it cannot be clipped"));
+        return;
+    }
+    let below = clip_below_target(&app.doc, name);
+    let label = below.as_ref().map_or_else(|| tr("Clip to the slot below").to_string(), |b| format!("{}    Ctrl+Alt+G", crate::tf!("Clip to {}", b)));
+    if ui.add_enabled(below.is_some(), crate::icons::labeled(crate::icons::Icon::Clip, label)).on_disabled_hover_text(tr("There is no slot behind this one to clip to")).clicked() {
+        set_clip(app, name, below);
+        ui.close();
+    }
+    let others: Vec<String> = app.doc.slots.iter().rev().filter(|s| s.name != name && s.clip.is_none()).map(|s| s.name.clone()).collect();
+    ui.menu_button(tr("Clip to another slot"), |ui| {
+        for other in others {
+            if ui.button(&other).clicked() {
+                set_clip(app, name, Some(other));
+                ui.close();
+            }
+        }
+    });
+}
+
 fn slot_menu(app: &mut EditorApp, ui: &mut egui::Ui, name: &str) {
+    clip_menu(app, ui, name);
+    ui.separator();
     let (Some(index), count) = (app.doc.slot_index(name), app.doc.slots.len()) else { return };
     let (hidden, locked) = (app.hidden_slots.contains(name), app.locked_slots.contains(name));
     let mut move_to = |ui: &mut egui::Ui, label: &str, enabled: bool, to: usize| {
@@ -1495,7 +1581,7 @@ fn slot_menu(app: &mut EditorApp, ui: &mut egui::Ui, name: &str) {
     move_to(ui, "Move back", index > 0, index.saturating_sub(1));
     move_to(ui, "Send to back", index > 0, 0);
     ui.separator();
-    if ui.button(tr("Rename")).clicked() {
+    if ui.add(crate::icons::labeled(crate::icons::Icon::Rename, tr("Rename"))).clicked() {
         crate::dialogs::rename(app, crate::dialogs::Item::Slot(name.to_string()));
         ui.close();
     }
@@ -1887,7 +1973,7 @@ fn bone_properties(app: &mut EditorApp, ui: &mut egui::Ui, bone: &Bone) {
     }
     let is_root = name == skel2d_core::ROOT;
     let path = bone_path(&app.doc, &name);
-    let context = if is_root { tr("Root bone · locked").to_string() } else if path.is_empty() { tr("Top-level bone").to_string() } else { path };
+    let context = if is_root { tr("Root bone").to_string() } else if path.is_empty() { tr("Top-level bone").to_string() } else { path };
     if let Some(new) = inspector_header_ex(ui, crate::icons::Icon::Bone, theme::bone_text_color(bone), tr("Bone"), &format!("bone_name_{name}"), &name, &context, focus, is_root) {
         patch = Some(("rename", BonePatch { name: name.clone(), rename: Some(new), ..Default::default() }));
     }
@@ -2091,7 +2177,7 @@ fn weights_panel(app: &mut EditorApp, ui: &mut egui::Ui, slot: &str, mesh: &skel
     if !picked.is_empty() {
         theme::hint(ui, &crate::tf!("{} vertices picked: drag a value to set it directly (* = mixed)", picked.len()));
     }
-    let mut weight_tree=TreeCtx {badges:Default::default(),navigation:vec![],collapsed:BTreeSet::new(),visible:None,drop:None,query:String::new(),show_slots:false,row:0,reveal:None};
+    let mut weight_tree=TreeCtx {pose:None,badges:Default::default(),navigation:vec![],collapsed:BTreeSet::new(),visible:None,drop:None,query:String::new(),show_slots:false,row:0,reveal:None};
     for bone in &bones {
         let active=app.selection.bone.as_deref()==Some(bone.as_str());
         let row=tree_row(ui,&mut weight_tree,RowSpec {key:format!("weight:{bone}"),name:bone,color:crate::viewport::bone_color(bone),selected:active,..Default::default()});
@@ -2173,11 +2259,11 @@ fn weights_panel(app: &mut EditorApp, ui: &mut egui::Ui, slot: &str, mesh: &skel
         if ui.button(tr("Smooth")).on_hover_text(crate::tf!("Average weights with neighbouring vertices ({}); click again to spread further", scope)).clicked() {
             out = Some(Op::SmoothWeights { slot:slot.into(),attachment:mesh.name.clone(),skin:skin.clone(),vertices:vertices.clone(),factor:0.5,iterations:1,locked_bones:locks.clone() });
         }
-        if ui.add_enabled(!picked.is_empty(), egui::Button::new(tr("Copy"))).on_hover_text(tr("Copy the picked vertices' average weights (Ctrl+C in the viewport)")).clicked() {
+        if ui.add_enabled(!picked.is_empty(), crate::icons::labeled(crate::icons::Icon::Copy, tr("Copy"))).on_hover_text(tr("Copy the picked vertices' average weights (Ctrl+C in the viewport)")).clicked() {
             app.view.weight_clipboard = Some(meshedit::copy_weights(mesh, picked, slot_bone));
         }
         let can_paste = !picked.is_empty() && app.view.weight_clipboard.is_some();
-        if ui.add_enabled(can_paste, egui::Button::new(tr("Paste"))).on_hover_text(tr("Give the picked vertices the copied weights (Ctrl+V in the viewport)")).clicked()
+        if ui.add_enabled(can_paste, crate::icons::labeled(crate::icons::Icon::Paste, tr("Paste"))).on_hover_text(tr("Give the picked vertices the copied weights (Ctrl+V in the viewport)")).clicked()
             && let Some(w) = &app.view.weight_clipboard
         {
             out = Some(crate::viewport::paste_weight_op(app,slot,mesh,picked,w));
@@ -2353,7 +2439,7 @@ fn ik_properties(app: &mut EditorApp, ui: &mut egui::Ui, ik: &IkConstraint) {
         }
         ui.add_space(6.0);
         let tip = tr("Key every value shown above at the playhead (a key per value, without moving the others)");
-        if ui.button(tr("Key IK")).on_hover_text(tip).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Key, tr("Key IK"))).on_hover_text(tip).clicked() {
             key_ik_now(app, ik);
         }
     } else {
@@ -2495,7 +2581,7 @@ fn skin_properties(app: &mut EditorApp, ui: &mut egui::Ui, skin: &Skin) {
         if ui.checkbox(&mut shown, tr("Show in viewport")).changed() {
             toggle_skin_preview(app, &name);
         }
-        if ui.button(tr("Only this")).on_hover_text(tr("Preview this skin alone")).clicked() {
+        if ui.add(crate::icons::labeled(crate::icons::Icon::Eye, tr("Only this"))).on_hover_text(tr("Preview this skin alone")).clicked() {
             app.skins = vec![name.clone()];
         }
     });
@@ -2545,11 +2631,11 @@ fn skin_properties(app: &mut EditorApp, ui: &mut egui::Ui, skin: &Skin) {
                         app.skins.retain(|k| k != &name); app.skins.push(name.clone());
                     }
                     row.main.context_menu(|ui| {
-                        if ui.button(tr("Rename")).clicked() {
+                        if ui.add(crate::icons::labeled(crate::icons::Icon::Rename, tr("Rename"))).clicked() {
                             crate::dialogs::rename(app, crate::dialogs::Item::Attachment { slot: slot.clone(), name: a.name().into(), skin: Some(name.clone()) });
                             ui.close();
                         }
-                        if ui.button(tr("Remove from this skin")).clicked() { remove = Some((slot.clone(), a.name().to_string())); ui.close(); }
+                        if ui.add(crate::icons::labeled(crate::icons::Icon::Close, tr("Remove from this skin"))).clicked() { remove = Some((slot.clone(), a.name().to_string())); ui.close(); }
                     });
                 }
             }
@@ -2569,7 +2655,7 @@ fn skin_properties(app: &mut EditorApp, ui: &mut egui::Ui, skin: &Skin) {
                 ui.add(crate::icons::image(crate::icons::Icon::Bone, 14.0).tint(app.doc.bone(b).map_or(BONE, theme::bone_text_color)));
                 ui.label(b);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Button::new("×").frame(false)).on_hover_text(tr("Remove from this skin")).clicked() {
+                    if ui.add(crate::icons::small(crate::icons::Icon::Close).frame(false)).on_hover_text(tr("Remove from this skin")).clicked() {
                         keep = false;
                     }
                 });
@@ -2578,7 +2664,7 @@ fn skin_properties(app: &mut EditorApp, ui: &mut egui::Ui, skin: &Skin) {
             keep
         });
         let sel = app.selection.bone.clone().filter(|b| !bones.contains(b));
-        if ui.add_enabled(sel.is_some(), egui::Button::new(tr("Add selected bone"))).clicked()
+        if ui.add_enabled(sel.is_some(), crate::icons::labeled(crate::icons::Icon::Bone, tr("Add selected bone"))).clicked()
             && let Some(b) = sel
         {
             bones.push(b);

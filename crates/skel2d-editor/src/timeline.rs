@@ -276,9 +276,21 @@ pub fn ui(app: &mut EditorApp, ui: &mut egui::Ui) {
 
 // ---------------------------------------------------------------- toolbar
 
+/// Auto key beside Play: red while edits write keys, as a record button reads.
+fn auto_key_button(app: &mut EditorApp, ui: &mut egui::Ui) {
+    let on = app.settings.auto_key;
+    let (fill, fg) = if on { (theme::ANIMATE, theme::ON_ACCENT) } else { (Color32::from_gray(58), theme::TEXT_DIM) };
+    let text = egui::RichText::new(tr("Auto key")).strong().color(fg);
+    let button = egui::Button::new((crate::icons::image(crate::icons::Icon::Key, 15.0).tint(fg), text)).fill(fill);
+    let tip = crate::tf!("{} [R]", tr("On: every change writes a key. Off: changes stay unkeyed (orange key buttons) until you key them with K or a key button; moving the playhead discards them, with a notice."));
+    if ui.add(button).on_hover_text(tip).clicked() {
+        app.settings.auto_key = !on;
+    }
+}
+
 fn toolbar(app: &mut EditorApp, ui: &mut egui::Ui) {
     let fps = app.settings.fps.max(1.0);
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         let mut current = app.playback.anim.clone();
         let mut new_anim = false;
         let combo = egui::ComboBox::from_id_salt("anim")
@@ -310,11 +322,11 @@ fn toolbar(app: &mut EditorApp, ui: &mut egui::Ui) {
                 ui.close();
             }
             if let Some(name) = &anim_name {
-                if ui.button(tr("Rename")).clicked() {
+                if ui.add(crate::icons::labeled(crate::icons::Icon::Rename, tr("Rename"))).clicked() {
                     crate::dialogs::rename(app, crate::dialogs::Item::Animation(name.clone()));
                     ui.close();
                 }
-                if ui.button(tr("Duplicate")).clicked() {
+                if ui.add(crate::icons::labeled(crate::icons::Icon::Duplicate, tr("Duplicate"))).clicked() {
                     crate::dialogs::duplicate_animation(app, name);
                     ui.close();
                 }
@@ -331,12 +343,15 @@ fn toolbar(app: &mut EditorApp, ui: &mut egui::Ui) {
             ui.separator();
             let label = if app.playback.playing { tr("Pause") } else { tr("Play") };
             if ui
-                .add(egui::Button::new(egui::RichText::new(label).strong()).min_size(vec2(64.0, 0.0)))
+                .add(crate::icons::labeled(if app.playback.playing { crate::icons::Icon::Pause } else { crate::icons::Icon::Play }, egui::RichText::new(label).strong()).min_size(vec2(84.0, 0.0)))
                 .on_hover_text(tr("Play / pause [Space] · step frame [, .] · go to start / end [Home / End]"))
                 .clicked()
             {
                 app.playback.playing = !app.playback.playing;
             }
+        }
+        if anim_name.is_some() {
+            auto_key_button(app, ui);
         }
         let Some(name) = anim_name else {
             if !app.playback.layers.is_empty() {
@@ -346,6 +361,7 @@ fn toolbar(app: &mut EditorApp, ui: &mut egui::Ui) {
             }
             return;
         };
+        ui.add(crate::icons::image(crate::icons::Icon::Loop, 16.0).tint(theme::TEXT_DIM));
         ui.checkbox(&mut app.playback.looping, tr("Loop")).on_hover_text(tr("Loop playback; off stops at the end"));
         let speed_label = |s: f32| format!("{s}×");
         egui::ComboBox::from_id_salt("speed")
@@ -397,8 +413,9 @@ fn layers_menu(app: &mut EditorApp, ui: &mut egui::Ui) {
     ui.vertical(|ui| {
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new(tr("Play together with")).strong());
-            theme::hint(ui, tr("Bottom first · drag to reorder"));
+            if !app.playback.layers.is_empty() { theme::hint(ui, tr("Bottom first · drag to reorder")); }
             ui.menu_button(tr("Add animation"), |ui| {
+                theme::hint(ui, tr("Add animations to play several together while you work (a preview only)"));
                 let names: Vec<_> = app.doc.animations.keys()
                     .filter(|n| Some(*n) != main.as_ref() && !app.playback.layers.iter().any(|l| &l.anim == *n)).cloned().collect();
                 if names.is_empty() { theme::hint(ui, tr("No other animations")); }
@@ -424,13 +441,13 @@ fn layers_menu(app: &mut EditorApp, ui: &mut egui::Ui) {
                     let mut percent = layer.alpha * 100.0;
                     ui.spacing_mut().slider_width = theme::TRACK_ALPHA_WIDTH;
                     if ui.add(egui::Slider::new(&mut percent, 0.0..=100.0).suffix("%").fixed_decimals(0)).on_hover_text(tr("Track opacity")).changed() { layer.alpha = percent / 100.0; }
-                    if ui.add_enabled(index + 1 < len, egui::Button::new("↑")).on_hover_text(tr("Move layer up (apply later)")).clicked() {
+                    if ui.add_enabled(index + 1 < len, crate::icons::small(crate::icons::Icon::ArrowUp)).on_hover_text(tr("Move layer up (apply later)")).clicked() {
                         action = Some((name.clone(), Some((String::new(), true))));
                     }
-                    if ui.add_enabled(index > 0, egui::Button::new("↓")).on_hover_text(tr("Move layer down (apply earlier)")).clicked() {
+                    if ui.add_enabled(index > 0, crate::icons::small(crate::icons::Icon::ArrowDown)).on_hover_text(tr("Move layer down (apply earlier)")).clicked() {
                         action = Some((name.clone(), Some((String::new(), false))));
                     }
-                    if ui.small_button("×").on_hover_text(tr("Remove preview layer")).clicked() { action = Some((name.clone(), None)); }
+                    if ui.add(crate::icons::small(crate::icons::Icon::Close)).on_hover_text(tr("Remove preview layer")).clicked() { action = Some((name.clone(), None)); }
                 });
                 if let Some(drag) = egui::DragAndDrop::payload::<LayerDrag>(ui.ctx())
                     && drag.0 != name
@@ -450,8 +467,7 @@ fn layers_menu(app: &mut EditorApp, ui: &mut egui::Ui) {
                 Some((target, above)) => { app.playback.reorder_layer(&name, &target, above); }
             }
         }
-        if let Some(name) = main { theme::hint(ui, &crate::tf!("Track 0 · editing {}", name)); }
-        else if app.playback.layers.is_empty() { theme::hint(ui, tr("Add animations to play several together while you work (a preview only)")); }
+        if let (Some(name), false) = (main, app.playback.layers.is_empty()) { theme::hint(ui, &crate::tf!("Track 0 · editing {}", name)); }
     });
 }
 
@@ -484,6 +500,7 @@ pub fn key_edited(app: &mut EditorApp) -> bool {
             crate::app::Tool::Translate => Some(Target::BoneProp(bone, BoneProp::Translate)),
             crate::app::Tool::Rotate => Some(Target::BoneProp(bone, BoneProp::Rotate)),
             crate::app::Tool::Scale => Some(Target::BoneProp(bone, BoneProp::Scale)),
+            crate::app::Tool::Shear => Some(Target::BoneProp(bone, BoneProp::Shear)),
             _ => None,
         }
     } else {
@@ -618,6 +635,7 @@ pub fn key_row(app: &mut EditorApp, row: &KeyRow) -> bool {
             crate::app::Tool::Translate => Some(BoneProp::Translate),
             crate::app::Tool::Rotate => Some(BoneProp::Rotate),
             crate::app::Tool::Scale => Some(BoneProp::Scale),
+            crate::app::Tool::Shear => Some(BoneProp::Shear),
             _ => None,
         };
         if !changed.is_empty() {
@@ -1739,7 +1757,7 @@ fn dope_sheet(app: &mut EditorApp, ui: &mut egui::Ui, name: &str) {
     let time = app.playback.time;
     draw_ruler(&painter, ruler_rect, view, &ticks, fps, time, duration);
 
-    let area_h = sheet_area.height().max(ROW_H * 2.0);
+    let area_h = ((sheet_area.height() / ROW_H).floor() * ROW_H).max(ROW_H * 2.0);
     egui::ScrollArea::vertical().auto_shrink([false, false]).max_height(area_h).show(ui, |ui| {
         let h = rows_h.max(area_h);
         let (resp, painter) = ui.allocate_painter(vec2(width, h), Sense::click_and_drag());

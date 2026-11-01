@@ -522,7 +522,7 @@ impl EditorDialog {
             Form::Weights(f) => f.action.title(),
             Form::Linked(_) => "Create linked mesh",
             Form::Preferences(_) => "Preferences",
-            Form::Gif(_) => "Export GIF",
+            Form::Gif(_) => "Export animation",
         }
     }
 
@@ -535,7 +535,7 @@ impl EditorDialog {
             Form::Ik(_) => tr("Makes a bone reach for a target bone.").to_string(),
             Form::Physics(_) => tr("Makes a bone lag behind and sway on a spring.").to_string(),
             Form::Transform(_) => tr("Makes a bone follow part of another bone's movement.").to_string(),
-            Form::Gif(_) => tr("Writes the animation as a looping image, with the previewed skins and the animations playing together.").to_string(),
+            Form::Gif(_) => tr("Writes the animation as a looping GIF or a sprite sheet, with the previewed skins and the animations playing together.").to_string(),
             _ => String::new(),
         }
     }
@@ -746,7 +746,7 @@ impl EditorDialog {
         let mut apply = false;
         let destructive = matches!(self.form, Form::Delete(_));
         let label = if destructive { "Delete" } else if matches!(self.form, Form::Gif(_)) { "Export" } else if matches!(self.form, Form::Preferences(_) | Form::Rename(_) | Form::Mesh(_) | Form::Weights(_)) { "Apply" } else { "Create" };
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        theme::dialog_buttons(ui, |ui| {
             let emphasis = if destructive { theme::Emphasis::Danger } else { theme::Emphasis::Primary };
             apply = ui.add_enabled(invalid.is_none(), theme::dialog_button(tr(label), emphasis)).on_hover_text("Enter").clicked();
             close |= ui.add(theme::dialog_button(tr("Cancel"), theme::Emphasis::Plain)).on_hover_text("Esc").clicked();

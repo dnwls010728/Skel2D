@@ -275,6 +275,10 @@ pub struct Slot {
     /// How the slot's pixels combine with what is behind them.
     #[serde(default, skip_serializing_if = "BlendMode::is_normal")]
     pub blend: BlendMode,
+    /// Another slot whose rendered alpha masks this one, like a Photoshop
+    /// clipping layer. The two keep moving independently.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clip: Option<String>,
     /// Attachment visible in the setup pose.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment: Option<String>,

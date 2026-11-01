@@ -263,6 +263,22 @@ pub enum Op {
     SetConstraintOrder {
         names: Vec<String>,
     },
+    /// Moves a bone's setup position while everything on it stays put on
+    /// screen: child bones and regions are compensated, and meshes keep their
+    /// setup-space vertices. `x` and `y` are in the parent's space.
+    ReseatBone {
+        name: String,
+        x: f32,
+        y: f32,
+    },
+    /// Draws a bone again from `start` to `end` in world space, setting its
+    /// position, rotation and length while everything on it stays put on
+    /// screen, like [`Op::ReseatBone`]. Its scale is kept.
+    RedrawBone {
+        name: String,
+        start: Vec2,
+        end: Vec2,
+    },
     RemoveIk {
         name: String,
     },
@@ -810,6 +826,10 @@ pub struct SlotPatch {
     pub color: Option<Color>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blend: Option<crate::model::BlendMode>,
+    /// Slot whose alpha masks this one; `null` removes the clip.
+    #[serde(default, deserialize_with = "double_option", skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
+    pub clip: Option<Option<String>>,
     /// Visible setup attachment; `null` hides the slot.
     #[serde(default, deserialize_with = "double_option", skip_serializing_if = "Option::is_none")]
     #[schemars(with = "Option<String>")]
@@ -978,6 +998,9 @@ fn apply_one(doc: &mut Document, op: &Op) -> OpResult {
                 return Err(format!("slot {:?} already exists", slot.name));
             }
             bone_exists(doc, &slot.bone)?;
+            if let Some(base) = &slot.clip {
+                check_clip(doc, &slot.name, base)?;
+            }
             let i = index.unwrap_or(doc.slots.len()).min(doc.slots.len());
             doc.slots.insert(i, slot.clone());
         }
@@ -985,6 +1008,9 @@ fn apply_one(doc: &mut Document, op: &Op) -> OpResult {
         Op::RemoveSlot { name } => {
             let i = slot_index(doc, name)?;
             doc.slots.remove(i);
+            for slot in doc.slots.iter_mut().filter(|s| s.clip.as_deref() == Some(name)) {
+                slot.clip = None;
+            }
             for anim in doc.animations.values_mut() {
                 anim.slots.remove(name);
                 for slots in anim.deform.values_mut() { slots.remove(name); }
@@ -1198,6 +1224,8 @@ fn apply_one(doc: &mut Document, op: &Op) -> OpResult {
         }
         Op::SetIk(p) => set_ik(doc, p)?,
         Op::SetConstraintOrder { names } => set_constraint_order(doc, names)?,
+        Op::ReseatBone { name, x, y } => reseat_bone(doc, name, *x, *y)?,
+        Op::RedrawBone { name, start, end } => redraw_bone(doc, name, *start, *end)?,
         Op::RemoveIk { name } => {
             let i = ik_index(doc, name)?;
             doc.ik.remove(i);
@@ -1924,6 +1952,108 @@ fn set_physics(doc: &mut Document, p: &PhysicsPatch) -> OpResult {
     Ok(())
 }
 
+fn redraw_bone(doc: &mut Document, name: &str, start: Vec2, end: Vec2) -> OpResult {
+    bone_exists(doc, name)?;
+    if !start.iter().chain(&end).all(|v| v.is_finite()) {
+        return Err("start and end must be finite".into());
+    }
+    if (end[0] - start[0]).hypot(end[1] - start[1]) < 1e-3 {
+        return Err(format!("bone {name:?}: start and end are the same point"));
+    }
+    let i = doc.bone_index(name).expect("checked above");
+    let parent_index = doc.bones[i].parent.as_ref().and_then(|p| doc.bone_index(p));
+    let before = setup_pose(doc);
+    let parent_world = parent_index.map_or(Affine::IDENTITY, |p| before.bones[p].world);
+    let old_world = before.bones[i].world;
+    let inverse_parent = parent_world.inverse().ok_or_else(|| format!("bone {name:?}: its parent has zero scale"))?;
+    if old_world.inverse().is_none() {
+        return Err(format!("bone {name:?} has zero scale, so its children cannot be kept in place"));
+    }
+    let children: Vec<(usize, Affine)> = doc.bones.iter().enumerate().filter(|(_, b)| b.parent.as_deref() == Some(name)).map(|(c, _)| (c, before.bones[c].world)).collect();
+
+    let [x, y] = inverse_parent.apply(start[0], start[1]);
+    let [dx, dy] = inverse_parent.apply_vector(end[0] - start[0], end[1] - start[1]);
+    let bone = &mut doc.bones[i];
+    (bone.x, bone.y, bone.rotation) = (round3(x), round3(y), round3(dy.atan2(dx).to_degrees()));
+    let new_world = setup_pose(doc).bones[i].world;
+    let inverse = new_world.inverse().ok_or_else(|| format!("bone {name:?} has zero scale, so its children cannot be kept in place"))?;
+    let [lx, ly] = inverse.apply_vector(end[0] - start[0], end[1] - start[1]);
+    doc.bones[i].length = round3(lx.hypot(ly));
+
+    for (c, world) in children {
+        let inherit = doc.bones[c].inherit;
+        let local = LocalTransform::from_world(Some(&new_world), &world, inherit).ok_or_else(|| format!("bone {name:?} has zero scale, so its children cannot be kept in place"))?;
+        let child = &mut doc.bones[c];
+        (child.x, child.y, child.rotation, child.scale_x, child.scale_y, child.shear_x, child.shear_y) = (local.x, local.y, local.rotation, local.scale_x, local.scale_y, local.shear_x, local.shear_y);
+    }
+    // A region has no shear: under a non-uniform bone scale it keeps its place and size, not its skew.
+    let change = inverse.mul(&old_world);
+    let keep = |attachments: &mut Vec<Attachment>| {
+        for attachment in attachments {
+            if let Attachment::Region(r) = attachment {
+                let m = change.mul(&Affine::from_trs(r.x, r.y, r.rotation, r.scale_x, r.scale_y));
+                (r.x, r.y, r.rotation, r.scale_x) = (m.tx, m.ty, m.rotation_deg(), m.scale_x());
+                r.scale_y = m.scale_y() * if m.determinant() < 0.0 { -1.0 } else { 1.0 };
+            }
+        }
+    };
+    let slots: Vec<String> = doc.slots.iter().filter(|s| s.bone == name).map(|s| s.name.clone()).collect();
+    for slot in doc.slots.iter_mut().filter(|s| s.bone == name) {
+        keep(&mut slot.attachments);
+    }
+    for skin in &mut doc.skins {
+        for slot in &slots {
+            if let Some(attachments) = skin.attachments.get_mut(slot) {
+                keep(attachments);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn reseat_bone(doc: &mut Document, name: &str, x: f32, y: f32) -> OpResult {
+    bone_exists(doc, name)?;
+    if !x.is_finite() || !y.is_finite() {
+        return Err(format!("bone {name:?}: position must be finite"));
+    }
+    let mut setup = doc.clone();
+    setup.ik.clear();
+    setup.transforms.clear();
+    let pose = Pose::compute(&setup, None);
+    let i = doc.bones.iter().position(|b| b.name == name).expect("checked above");
+    let parent = doc.bones[i].parent.as_ref().and_then(|p| doc.bones.iter().position(|b| &b.name == p)).map_or(Affine::IDENTITY, |p| pose.bones[p].world);
+    let inverse = pose.bones[i].world.inverse().ok_or_else(|| format!("bone {name:?} has zero scale, so its children cannot be kept in place"))?;
+    let [wx, wy] = parent.apply_vector(x - doc.bones[i].x, y - doc.bones[i].y);
+    // The bone's origin moved by this much in its own space.
+    let [dx, dy] = inverse.apply_vector(wx, wy);
+    doc.bones[i].x = x;
+    doc.bones[i].y = y;
+    for bone in doc.bones.iter_mut().filter(|b| b.parent.as_deref() == Some(name)) {
+        bone.x -= dx;
+        bone.y -= dy;
+    }
+    let shift = |attachments: &mut Vec<Attachment>| {
+        for attachment in attachments {
+            if let Attachment::Region(r) = attachment {
+                r.x -= dx;
+                r.y -= dy;
+            }
+        }
+    };
+    let slots: Vec<String> = doc.slots.iter().filter(|s| s.bone == name).map(|s| s.name.clone()).collect();
+    for slot in doc.slots.iter_mut().filter(|s| s.bone == name) {
+        shift(&mut slot.attachments);
+    }
+    for skin in &mut doc.skins {
+        for slot in &slots {
+            if let Some(attachments) = skin.attachments.get_mut(slot) {
+                shift(attachments);
+            }
+        }
+    }
+    Ok(())
+}
+
 fn set_constraint_order(doc: &mut Document, names: &[String]) -> OpResult {
     if names.len() != doc.ik.len() + doc.physics.len() + doc.transforms.len() {
         return Err("list every constraint exactly once".into());
@@ -2536,8 +2666,29 @@ fn remove_bone(doc: &mut Document, name: &str, recursive: bool) -> OpResult {
     Ok(())
 }
 
+/// A clip goes one level: the base is another existing slot that is not itself
+/// clipped, and a slot other slots clip to cannot be clipped.
+fn check_clip(doc: &Document, slot: &str, base: &str) -> OpResult {
+    if slot == base {
+        return Err(format!("slot {slot:?} cannot clip to itself"));
+    }
+    let Some(target) = doc.slot(base) else {
+        return Err(format!("slot {base:?} does not exist"));
+    };
+    if target.clip.is_some() {
+        return Err(format!("slot {base:?} is clipped itself, so it cannot be a clip base"));
+    }
+    if doc.slots.iter().any(|s| s.clip.as_deref() == Some(slot)) {
+        return Err(format!("slot {slot:?} is a clip base, so it cannot be clipped"));
+    }
+    Ok(())
+}
+
 fn set_slot(doc: &mut Document, p: &SlotPatch) -> OpResult {
     let i = slot_index(doc, &p.name)?;
+    if let Some(Some(base)) = &p.clip {
+        check_clip(doc, &p.name, base)?;
+    }
     if let Some(b) = &p.bone {
         bone_exists(doc, b)?;
     }
@@ -2555,6 +2706,9 @@ fn set_slot(doc: &mut Document, p: &SlotPatch) -> OpResult {
     if let Some(b) = p.blend {
         slot.blend = b;
     }
+    if let Some(c) = &p.clip {
+        slot.clip = c.clone();
+    }
     if let Some(Some(name)) = &p.attachment
         && !slot_has_attachment(doc, &p.name, name)
     {
@@ -2566,6 +2720,9 @@ fn set_slot(doc: &mut Document, p: &SlotPatch) -> OpResult {
     }
     if let Some(new) = &p.rename {
         slot.name = new.clone();
+        for other in doc.slots.iter_mut().filter(|s| s.clip.as_deref() == Some(p.name.as_str())) {
+            other.clip = Some(new.clone());
+        }
         for anim in doc.animations.values_mut() {
             if let Some(tl) = anim.slots.remove(&p.name) {
                 anim.slots.insert(new.clone(), tl);

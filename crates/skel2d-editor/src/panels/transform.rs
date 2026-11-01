@@ -59,7 +59,7 @@ pub fn transform_properties(app: &mut EditorApp, ui: &mut egui::Ui, c: &Transfor
             for name in &c.bones {
                 ui.horizontal(|ui| {
                     ui.label(name);
-                    if c.bones.len() > 1 && ui.small_button("x").on_hover_text(tr("Remove")).clicked() {
+                    if c.bones.len() > 1 && ui.add(crate::icons::small(crate::icons::Icon::Close)).on_hover_text(tr("Remove")).clicked() {
                         edit = Some(("bones".into(), TransformPatch { bones: Some(c.bones.iter().filter(|b| *b != name).cloned().collect()), ..patch() }));
                     }
                 });

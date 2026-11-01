@@ -5,8 +5,8 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use skel2d_core::{Affine, Attachment, Bone, Color, Document, Mesh, Op, Pose, Region, Slot};
-use skel2d_rig::psd::Split;
+use skel2d_core::{Affine, Attachment, BlendMode, Bone, Color, Document, Mesh, Op, Pose, Region, Slot};
+use skel2d_rig::psd::{Hidden, OriginSource, Split};
 
 use crate::app::{Dialog, EditorApp};
 
@@ -20,9 +20,20 @@ fn round3(v: f32) -> f32 {
 
 /// Setup pose without IK, the space region and mesh placement is defined in.
 pub fn setup_pose(doc: &Document) -> Pose {
-    let mut setup = doc.clone();
-    setup.ik.clear();
-    setup.transforms.clear();
+    // Built field by field: animations are most of a rig and the setup pose never reads them.
+    let setup = Document {
+        format: doc.format.clone(),
+        name: String::new(),
+        bones: doc.bones.clone(),
+        slots: doc.slots.clone(),
+        ik: Vec::new(),
+        physics: doc.physics.clone(),
+        transforms: Vec::new(),
+        physics_globals: doc.physics_globals.clone(),
+        events: Default::default(),
+        skins: doc.skins.clone(),
+        animations: Default::default(),
+    };
     Pose::compute(&setup, None)
 }
 
@@ -48,10 +59,19 @@ pub fn carry_meshes(before: &Document, mut after: Document) -> Result<Document, 
     }
     let index: std::collections::HashMap<&str, usize> = after.bones.iter().enumerate().map(|(i, b)| (b.name.as_str(), i)).collect();
     let mut slots = std::mem::take(&mut after.slots);
+    // Meshes no moved bone touches keep their triangles untouched below.
+    let mut moved_meshes = std::collections::HashSet::new();
     for slot in &mut slots {
         let own = index.get(slot.bone.as_str()).map_or(Affine::IDENTITY, |&i| moves[i]);
         for att in &mut slot.attachments {
             let Attachment::Mesh(mesh) = att else { continue };
+            let affected = |v: &skel2d_core::MeshVertex| {
+                if v.weights.iter().all(|w| w.weight <= 0.0) { own != Affine::IDENTITY } else { v.weights.iter().any(|w| w.weight > 0.0 && index.get(w.bone.as_str()).is_none_or(|&i| moves[i] != Affine::IDENTITY)) }
+            };
+            if !mesh.vertices.iter().any(affected) {
+                continue;
+            }
+            moved_meshes.insert((slot.name.clone(), mesh.name.clone()));
             for v in &mut mesh.vertices {
                 let (mut x, mut y, mut total) = (0.0, 0.0, 0.0);
                 for w in v.weights.iter().filter(|w| w.weight > 0.0) {
@@ -71,6 +91,9 @@ pub fn carry_meshes(before: &Document, mut after: Document) -> Result<Document, 
     for slot in &mut after.slots {
         for att in &mut slot.attachments {
             let Attachment::Mesh(mesh) = att else { continue };
+            if !moved_meshes.contains(&(slot.name.clone(), mesh.name.clone())) {
+                continue;
+            }
             if skel2d_core::mesh::hull_reversed(mesh) {
                 reversed.push(Op::SetMeshEdges { slot: slot.name.clone(), attachment: mesh.name.clone(), skin: None, edges: mesh.edges.clone() });
             } else {
@@ -155,10 +178,22 @@ fn unique(base: &str, taken: impl Fn(&str) -> bool) -> String {
 /// undo step.
 pub fn import_images(app: &mut EditorApp, files: &[PathBuf], at: [f32; 2], bone: Option<String>) {
     if files.iter().any(|f| is_psd(f)) {
-        app.dialog = Dialog::PsdSplit(PendingImport { files: files.to_vec(), at, bone, split: Split::default() });
+        app.dialog = Dialog::PsdSplit(PendingImport { files: files.to_vec(), at, bone, split: Split::default(), hidden: Hidden::default() });
         return;
     }
-    import_images_split(app, files, at, bone, Split::default());
+    import_images_split(app, files, at, bone, Split::default(), Hidden::default());
+}
+
+/// Files picked with the Import images command. A document that already has
+/// slots first asks whether they start a new project or join this one; an
+/// empty document just takes them.
+pub fn import_picked(app: &mut EditorApp, files: Vec<PathBuf>) {
+    if app.doc.slots.is_empty() {
+        let (at, bone) = (app.camera.center, app.selection.bone.clone());
+        import_images(app, &files, at, bone);
+    } else {
+        app.dialog = Dialog::ImportTarget(files);
+    }
 }
 
 /// PNG files dropped on the viewport while a slot is picked: add them to that
@@ -186,10 +221,13 @@ pub struct PendingImport {
     pub at: [f32; 2],
     pub bone: Option<String>,
     pub split: Split,
+    pub hidden: Hidden,
 }
 
-/// [`import_images`] with PSDs split by `split`.
-pub fn import_images_split(app: &mut EditorApp, files: &[PathBuf], at: [f32; 2], bone: Option<String>, split: Split) {
+/// [`import_images`] with PSDs split by `split` and hidden layers handled by
+/// `hidden`. A part kept by [`Hidden::Transparent`] gets a slot with alpha 0.
+pub fn import_images_split(app: &mut EditorApp, files: &[PathBuf], at: [f32; 2], bone: Option<String>, split: Split, hidden: Hidden) {
+    let frame = app.doc.slots.is_empty();
     let (bone, add_root) = target_bone(&app.doc, bone);
     let mut ops: Vec<Op> = add_root.into_iter().collect();
     let doc = match skel2d_core::apply(&app.doc, &ops) {
@@ -203,32 +241,44 @@ pub fn import_images_split(app: &mut EditorApp, files: &[PathBuf], at: [f32; 2],
     let base = app.base_dir();
     let mut images: Vec<PlacedImage> = Vec::new();
     let mut psd_dirs = Vec::new();
+    let mut origin_note = None;
     let mut skipped = Vec::new();
     for file in files {
         if !is_psd(file) {
-            images.push((file.clone(), at));
+            images.push(PlacedImage { file: file.clone(), center: at, transparent: false, blend: BlendMode::Normal, clip: None });
             continue;
         }
-        match split_psd(file, split) {
-            Ok((dir, parts)) => {
-                images.extend(parts.into_iter().map(|(f, [dx, dy])| (f, [round2(at[0] + dx), round2(at[1] + dy)])));
+        match split_psd(file, split, hidden).map(|(dir, parts, source)| {
+            // A PSD that names its origin puts it on the bone; otherwise the canvas center goes where it was asked.
+            let explicit = source != OriginSource::Canvas;
+            (dir, parts, explicit.then_some(source), if explicit { bone_world(&doc, &pose, &bone).apply(0.0, 0.0) } else { at })
+        }) {
+            Ok((dir, parts, source, at)) => {
+                origin_note = source.or(origin_note);
+                let offset = images.len();
+                images.extend(parts.into_iter().map(|p| PlacedImage { center: [round2(at[0] + p.center[0]), round2(at[1] + p.center[1])], clip: p.clip.map(|c| c + offset), ..p }));
                 psd_dirs.push(dir.display().to_string());
             }
             Err(e) => skipped.push(format!("{} ({e})", file.display())),
         }
     }
     let mut names: Vec<String> = Vec::new();
-    for (file, center) in &images {
+    // Per image, the slot it became: a clip names its base's slot.
+    let mut slot_of: Vec<Option<String>> = Vec::with_capacity(images.len());
+    for PlacedImage { file, center, transparent, blend, clip } in &images {
         let Some([w, h]) = image_size(file) else {
             skipped.push(file.display().to_string());
+            slot_of.push(None);
             continue;
         };
         let stem = file.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let name = unique(&stem, |n| doc.slot(n).is_some() || names.iter().any(|x| x == n));
         let (x, y, rotation, scale_x, scale_y) = upright_on(&doc, &pose, &bone, *center);
         let region = Region { name: stem.clone(), image: Some(rel_path(&base, file)), x, y, rotation, scale_x, scale_y, width: w as f32, height: h as f32 };
-        let slot = Slot { name: name.clone(), bone: bone.clone(), color: Color::WHITE, blend: Default::default(), attachment: Some(stem), attachments: vec![Attachment::Region(region)] };
+        let color = if *transparent { Color { a: 0.0, ..Color::WHITE } } else { Color::WHITE };
+        let slot = Slot { name: name.clone(), bone: bone.clone(), color, blend: *blend, clip: clip.and_then(|c| slot_of.get(c).cloned().flatten()), attachment: Some(stem), attachments: vec![Attachment::Region(region)] };
         ops.push(Op::AddSlot { slot, index: None });
+        slot_of.push(Some(name.clone()));
         names.push(name);
     }
     if names.is_empty() {
@@ -236,10 +286,16 @@ pub fn import_images_split(app: &mut EditorApp, files: &[PathBuf], at: [f32; 2],
         return;
     }
     if app.edit(ops) {
+        app.camera.needs_fit |= frame;
         app.selection.bone = Some(bone.clone());
         app.selection.slot = names.last().cloned();
         app.selection.ik = None;app.selection.physics = None;app.selection.transform = None;
         let mut msg = crate::tf!("Added {} on bone {}", names.join(", "), bone);
+        match origin_note {
+            Some(OriginSource::Layer) => msg += crate::i18n::tr(" · origin from the [origin] layer"),
+            Some(OriginSource::Guides) => msg += crate::i18n::tr(" · origin from the guides"),
+            _ => {}
+        }
         if !psd_dirs.is_empty() {
             msg += &crate::tf!(" · PSD parts saved in {}", psd_dirs.join(", "));
         }
@@ -253,8 +309,15 @@ pub fn import_images_split(app: &mut EditorApp, files: &[PathBuf], at: [f32; 2],
     }
 }
 
-/// An image file and its center in world units.
-type PlacedImage = (PathBuf, [f32; 2]);
+/// An image waiting to become a slot; `clip` is the index of its base image.
+struct PlacedImage {
+    file: PathBuf,
+    /// In world units.
+    center: [f32; 2],
+    transparent: bool,
+    blend: BlendMode,
+    clip: Option<usize>,
+}
 
 fn is_psd(file: &Path) -> bool {
     file.extension().is_some_and(|e| e.eq_ignore_ascii_case("psd"))
@@ -262,11 +325,12 @@ fn is_psd(file: &Path) -> bool {
 
 /// Splits a layered PSD into one PNG per part (see [`skel2d_rig::psd::import`])
 /// in a new `<name>_parts` folder beside it. Returns the folder and each
-/// part's file, back to front, with its center relative to the canvas
+/// part's file, back to front, and where the origin came from, with each center relative to the PSD's origin
 /// center in world units (1 per pixel, y up).
-fn split_psd(file: &Path, split: Split) -> Result<(PathBuf, Vec<PlacedImage>), String> {
+fn split_psd(file: &Path, split: Split, hidden: Hidden) -> Result<(PathBuf, Vec<PlacedImage>, OriginSource), String> {
     let bytes = std::fs::read(file).map_err(|e| e.to_string())?;
-    let ([w, h], parts) = skel2d_rig::psd::import(&bytes, &[], split)?;
+    let origin = skel2d_rig::psd::origin(&bytes)?;
+    let (_, parts) = skel2d_rig::psd::import(&bytes, &[], split, hidden)?;
     if parts.is_empty() {
         return Err(crate::i18n::tr("no visible layers").to_string());
     }
@@ -278,11 +342,11 @@ fn split_psd(file: &Path, split: Split) -> Result<(PathBuf, Vec<PlacedImage>), S
     for (part, name) in parts.iter().zip(skel2d_rig::psd::file_names(&parts)) {
         let path = dir.join(format!("{name}.png"));
         part.image.save_png(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let cx = part.x as f32 + part.image.width() as f32 / 2.0 - w as f32 / 2.0;
-        let cy = part.y as f32 + part.image.height() as f32 / 2.0 - h as f32 / 2.0;
-        out.push((path, [cx, -cy]));
+        let cx = part.x as f32 + part.image.width() as f32 / 2.0 - origin.x;
+        let cy = part.y as f32 + part.image.height() as f32 / 2.0 - origin.y;
+        out.push(PlacedImage { file: path, center: [cx, -cy], transparent: part.hidden, blend: part.blend, clip: part.clip_to });
     }
-    Ok((dir, out))
+    Ok((dir, out, origin.source))
 }
 
 pub fn pick_images() -> Vec<PathBuf> {
@@ -419,18 +483,62 @@ mod tests {
     }
 
     #[test]
+    fn a_psd_with_guides_puts_their_crossing_on_the_root() {
+        let source = std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/miya/miya_a_idle02_field.psd")).unwrap();
+        // The same file with one vertical guide at x=100 and one horizontal at y=200.
+        let mut data = vec![0, 0, 0, 1];
+        data.extend([0; 8]);
+        data.extend(2u32.to_be_bytes());
+        data.extend((100i32 * 32).to_be_bytes());
+        data.push(0);
+        data.extend((200i32 * 32).to_be_bytes());
+        data.push(1);
+        let mut resource = b"8BIM".to_vec();
+        resource.extend(1032u16.to_be_bytes());
+        resource.extend([0, 0]);
+        resource.extend((data.len() as u32).to_be_bytes());
+        resource.extend(data);
+        let at = 26 + 4 + u32::from_be_bytes(source[26..30].try_into().unwrap()) as usize;
+        let len = u32::from_be_bytes(source[at..at + 4].try_into().unwrap()) as usize;
+        let mut guided = source.clone();
+        guided.splice(at + 4 + len..at + 4 + len, resource.iter().copied());
+        guided[at..at + 4].copy_from_slice(&((len + resource.len()) as u32).to_be_bytes());
+
+        let tmp = std::env::temp_dir().join(format!("skel2d_psd_origin_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let import = |name: &str, bytes: &[u8], at: [f32; 2]| {
+            let file = tmp.join(name);
+            std::fs::write(&file, bytes).unwrap();
+            let mut app = EditorApp::test_app(Document::with_root("t"), tmp.join("t.skel.json"));
+            import_images_split(&mut app, &[file], at, None, Split::Layers, Hidden::Include);
+            app.doc
+        };
+        let region = |doc: &Document| match &doc.slots[0].attachments[0] {
+            Attachment::Region(r) => [r.x, r.y],
+            _ => panic!(),
+        };
+        let plain = import("plain.psd", &source, [0.0, 0.0]);
+        let marked = import("marked.psd", &guided, [500.0, 500.0]);
+        let (w, h) = (461.0, 720.0);
+        let ([px, py], [mx, my]) = (region(&plain), region(&marked));
+        assert!((mx - (px + w / 2.0 - 100.0)).abs() < 0.01, "{mx} vs {px}: x from the guide, not the drop point");
+        assert!((my - (py - h / 2.0 + 200.0)).abs() < 0.01, "{my} vs {py}: y up");
+        std::fs::remove_dir_all(&tmp).unwrap();
+    }
+
+    #[test]
     fn psd_parts_keep_canvas_layout() {
         let psd = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/miya/miya_a_idle02_field.psd");
         let tmp = std::env::temp_dir().join(format!("skel2d_psd_test_{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
         let file = tmp.join("miya.psd");
         std::fs::copy(&psd, &file).unwrap();
-        let (dir, parts) = split_psd(&file, Split::Groups).unwrap();
-        let (second, _) = split_psd(&file, Split::Groups).unwrap();
+        let (dir, parts, _) = split_psd(&file, Split::Groups, Hidden::Include).unwrap();
+        let (second, _, _) = split_psd(&file, Split::Groups, Hidden::Include).unwrap();
         assert_ne!(dir, second, "a second import gets its own folder");
-        let ([w, h], raw) = skel2d_rig::psd::import(&std::fs::read(&psd).unwrap(), &[], Split::Groups).unwrap();
+        let ([w, h], raw) = skel2d_rig::psd::import(&std::fs::read(&psd).unwrap(), &[], Split::Groups, Hidden::Include).unwrap();
         assert_eq!(parts.len(), raw.len());
-        for ((path, [cx, cy]), p) in parts.iter().zip(&raw) {
+        for (PlacedImage { file: path, center: [cx, cy], .. }, p) in parts.iter().zip(&raw) {
             assert_eq!(image_size(path), Some([p.image.width(), p.image.height()]));
             // Back on the canvas: center + half size gives the part's top-left.
             let x = cx + w as f32 / 2.0 - p.image.width() as f32 / 2.0;
@@ -464,7 +572,7 @@ mod tests {
         b.scale_y = 2.0;
         doc.bones.push(b);
         let region = Region { name: "r".into(), image: None, x: 3.0, y: 4.0, rotation: 10.0, scale_x: 1.0, scale_y: 1.0, width: 10.0, height: 6.0 };
-        let slot = Slot { name: "s".into(), bone: "a".into(), color: Color::WHITE, blend: Default::default(), attachment: Some("r".into()), attachments: vec![Attachment::Region(region.clone())] };
+        let slot = Slot { name: "s".into(), bone: "a".into(), color: Color::WHITE, blend: Default::default(), clip: None, attachment: Some("r".into()), attachments: vec![Attachment::Region(region.clone())] };
         doc.slots.push(slot.clone());
         let before = setup_pose(&doc).bones[0].world.mul(&Affine::from_trs(3.0, 4.0, 10.0, 1.0, 1.0)).apply(5.0, 3.0);
         let next = skel2d_core::apply(&doc, &rebind_slot(&doc, &slot, "b")).unwrap();

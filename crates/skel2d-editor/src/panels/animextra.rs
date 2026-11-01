@@ -91,11 +91,11 @@ pub(super) fn draw_order_group(app: &mut EditorApp, ui: &mut egui::Ui, open: boo
                     ui.allocate_ui_with_layout(egui::vec2(w, 22.0), egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.add(egui::Label::new(RichText::new(name).color(if selected { TEXT } else { theme::SLOT }).size(theme::SIZE_BODY)).truncate());
                     });
-                    let up = ui.add_enabled(rank > 0, egui::Button::new("↑"));
+                    let up = ui.add_enabled(rank > 0, crate::icons::small(crate::icons::Icon::ArrowUp));
                     if up.on_hover_text(tr("Bring one place forward (keys the order here)")).on_disabled_hover_text(tr("Already in front")).clicked() {
                         set = moved(&order, name, true).map(Some);
                     }
-                    let down = ui.add_enabled(rank < last, egui::Button::new("↓"));
+                    let down = ui.add_enabled(rank < last, crate::icons::small(crate::icons::Icon::ArrowDown));
                     if down.on_hover_text(tr("Send one place back (keys the order here)")).on_disabled_hover_text(tr("Already at the back")).clicked() {
                         set = moved(&order, name, false).map(Some);
                     }
@@ -220,18 +220,18 @@ pub(super) fn events_group(app: &mut EditorApp, ui: &mut egui::Ui, open: bool) {
                 theme::prop(ui, tr("Whole number"), tr("Whole-number value passed to the game"), |ui| {
                     let mut v = int.unwrap_or(def.int);
                     if ui.add(DragValue::new(&mut v)).on_hover_text(tr("Whole-number value passed to the game")).changed() { int = Some(v); changed = true; }
-                    if ui.add_enabled(int.is_some(), egui::Button::new("↺")).on_hover_text(tr("Follow the event's default again")).on_disabled_hover_text(tr("Already following the event's default")).clicked() { int = None; changed = true; }
+                    if ui.add_enabled(int.is_some(), crate::icons::small(crate::icons::Icon::Reset)).on_hover_text(tr("Follow the event's default again")).on_disabled_hover_text(tr("Already following the event's default")).clicked() { int = None; changed = true; }
                 });
                 theme::prop(ui, tr("Decimal number"), tr("Decimal value passed to the game"), |ui| {
                     let mut v = float.unwrap_or(def.float);
                     if ui.add(DragValue::new(&mut v).speed(0.01).max_decimals(3)).on_hover_text(tr("Decimal value passed to the game")).changed() && v.is_finite() { float = Some(v); changed = true; }
-                    if ui.add_enabled(float.is_some(), egui::Button::new("↺")).on_hover_text(tr("Follow the event's default again")).on_disabled_hover_text(tr("Already following the event's default")).clicked() { float = None; changed = true; }
+                    if ui.add_enabled(float.is_some(), crate::icons::small(crate::icons::Icon::Reset)).on_hover_text(tr("Follow the event's default again")).on_disabled_hover_text(tr("Already following the event's default")).clicked() { float = None; changed = true; }
                 });
                 theme::prop(ui, tr("Text"), tr("Text value passed to the game"), |ui| {
                     let mut v = string.clone().unwrap_or_else(|| def.string.clone());
                     let w = (ui.available_width() - 40.0).max(40.0);
                     if ui.add(egui::TextEdit::singleline(&mut v).desired_width(w)).on_hover_text(tr("Text value passed to the game")).changed() { string = Some(v); changed = true; }
-                    if ui.add_enabled(string.is_some(), egui::Button::new("↺")).on_hover_text(tr("Follow the event's default again")).on_disabled_hover_text(tr("Already following the event's default")).clicked() { string = None; changed = true; }
+                    if ui.add_enabled(string.is_some(), crate::icons::small(crate::icons::Icon::Reset)).on_hover_text(tr("Follow the event's default again")).on_disabled_hover_text(tr("Already following the event's default")).clicked() { string = None; changed = true; }
                 });
                 if changed {
                     edit.key = Some((int, float, string));
