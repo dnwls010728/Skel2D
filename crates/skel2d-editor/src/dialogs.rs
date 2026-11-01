@@ -199,7 +199,6 @@ pub struct MeshOptions {
 
 pub struct Preferences {
     settings: Settings,
-    show_bones: bool,
     tab: usize,
 }
 
@@ -433,7 +432,7 @@ pub fn attachment_mesh_options(app: &mut EditorApp, slot: &Slot, attachment: &At
 }
 
 pub fn preferences(app: &mut EditorApp) {
-    open(app, Form::Preferences(Preferences { settings: app.settings.clone(), show_bones: app.show_bones, tab: 0 }));
+    open(app, Form::Preferences(Preferences { settings: app.settings.clone(), tab: 0 }));
 }
 
 pub fn export_gif(app: &mut EditorApp) {
@@ -792,7 +791,7 @@ impl EditorDialog {
             }
             Form::Rename(f) => update_view_name(app, &f.item, f.name.trim()),
             Form::Delete(f) => app.status = crate::tf!("Deleted {} · Ctrl+Z to undo", f.item.name()),
-            Form::Preferences(f) => { app.settings = f.settings.clone(); app.show_bones = f.show_bones; }
+            Form::Preferences(f) => { app.settings = f.settings.clone(); }
             Form::Gif(f) => crate::export::start(app, f.clone()),
             Form::Mesh(_) => {}
             Form::Weights(_) => { app.status=tr("Weights updated · Ctrl+Z to undo").into(); }
@@ -1239,7 +1238,7 @@ impl Preferences {
                 number(ui, "UI size", &mut s.ui_scale, 0.8..=2.0);
             }
             1 => {
-                ui.checkbox(&mut self.show_bones, tr("Show bones"));
+                ui.checkbox(&mut s.show_bones, tr("Show bones"));
                 ui.checkbox(&mut s.show_grid, tr("Grid"));
                 ui.checkbox(&mut s.show_bone_names, tr("Bone names"));
                 ui.checkbox(&mut s.onion_skin, tr("Onion skin"));

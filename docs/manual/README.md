@@ -146,4 +146,4 @@ CLI/HTTP/MCP에서는 `pose`/`render`가 기본으로 시뮬레이션하며 `--p
 
 - 목차와 "이럴 때" 표의 쪽 번호는 HTML에 직접 적혀 있습니다. 내용을 고쳐 쪽이 바뀌면 PDF를 다시 만든 뒤 번호를 맞추세요. 목차 링크는 쪽 번호와 상관없이 동작합니다.
 - 화면 그림 `pdf/img/m_*.png`는 버전 0.2.0 에디터에서 `skel2d-editor FILE --lang ko --step N --wait 5 --screenshot OUT.png`로 찍은 것을 잘라 쓴 것입니다. UI가 바뀌면 다시 찍으세요.
-- 버전 1.0.0 기준입니다. 표지의 버전 글자는 `manual.html`의 `.cover`에 있습니다.
+- 버전 1.0.1 기준입니다. 표지의 버전 글자는 `manual.html`의 `.cover`에 있습니다.

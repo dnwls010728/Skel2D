@@ -402,7 +402,7 @@ fn run(app: &mut EditorApp, action: Action) {
         Action::Onion => app.settings.onion_skin = !app.settings.onion_skin,
         Action::Names => app.settings.show_bone_names = !app.settings.show_bone_names,
         Action::Grid => app.settings.show_grid = !app.settings.show_grid,
-        Action::Bones => app.show_bones = !app.show_bones,
+        Action::Bones => app.settings.show_bones = !app.settings.show_bones,
         Action::AutoKey => app.settings.auto_key = !app.settings.auto_key,
         Action::Help => app.show_help = !app.show_help,
         Action::UiScale(d) => app.settings.ui_scale = (app.settings.ui_scale + d).clamp(0.8, 2.0),

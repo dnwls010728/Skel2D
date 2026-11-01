@@ -173,7 +173,7 @@ pub fn tools(app: &mut EditorApp, ui: &mut egui::Ui) {
     let animate = app.step == Step::Animate;
     let s = &mut app.settings;
     let mut toggles: Vec<(&mut bool, Icon, &str, String)> = vec![
-        (&mut app.show_bones, Icon::Bones, "Bones", tr("Show the bones over the images").to_string()),
+        (&mut s.show_bones, Icon::Bones, "Bones", tr("Show the bones over the images").to_string()),
         (&mut s.show_bone_names, Icon::Names, "Names", tr("Bone names in the viewport").to_string()),
     ];
     if matches!(app.step, Step::Bones | Step::Images | Step::Animate) {

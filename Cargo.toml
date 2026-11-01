@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/skel2d-core", "crates/skel2d-render", "crates/skel2d-rig", "crates/skel2d-cli", "crates/skel2d-editor"]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 

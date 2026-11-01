@@ -424,7 +424,7 @@ impl Pick {
 fn pick_all(app: &EditorApp, pose: &Pose, rect: Rect, p: Pos2) -> Vec<Pick> {
     let cam = &app.camera;
     let mut out = Vec::new();
-    if app.show_bones {
+    if app.settings.show_bones {
         let mut hits: Vec<(f32, usize)> = Vec::new();
         for (i, (bone, bp)) in app.doc.bones.iter().zip(&pose.bones).enumerate() {
             if !app.bone_pickable(&bone.name) {
@@ -794,14 +794,14 @@ pub fn ui(app: &mut EditorApp, ui: &mut egui::Ui) {
     }
     draw_slots(app, &ctx, &painter, rect, &pose);
     draw_weight_overlay(app, &painter, rect, &pose);
-    if app.show_bones {
+    if app.settings.show_bones {
         draw_physics_ghosts(app, &painter, rect, &pose);
         draw_bones(app, &painter, rect, &pose);
         draw_physics_marks(app, &painter, rect, &pose);
     }
     draw_vertices(app, &painter, rect, &pose);
     draw_gizmo(app, &painter, rect, &pose);
-    if app.show_bones && !matches!(app.tool, Tool::Bone | Tool::Weights | Tool::Mesh) {
+    if app.settings.show_bones && !matches!(app.tool, Tool::Bone | Tool::Weights | Tool::Mesh) {
         crate::ikbend::draw(app, &painter, rect, &pose, response.hover_pos());
     }
     // Without an animation, step 5 has nothing to key: the viewport only shows.
@@ -971,7 +971,7 @@ fn interact(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect:
         Tool::Weights => return weight_tool(app, ui, response, rect, pose),
         Tool::Mesh => {}
         _ => {
-            if app.show_bones && crate::ikbend::interact(app, ui, response, rect, pose) {
+            if app.settings.show_bones && crate::ikbend::interact(app, ui, response, rect, pose) {
                 return;
             }
         }
@@ -2215,16 +2215,28 @@ fn nice(x: f32) -> f32 {
 /// Height of the row of controls under the guide band, with its gap.
 const VIEWPORT_CONTROLS_H: f32 = 44.0;
 
+/// Minor and major grid spacing in world units. With a snap grid the lines sit on
+/// its multiples (doubled until they are at least 12 px apart); otherwise 1-2-5 steps.
+fn grid_steps(zoom: f32, snap: Option<f32>) -> (f32, f32) {
+    if let Some(g) = snap.filter(|g| g.is_finite() && *g > 0.0) {
+        let mut minor = g;
+        while minor * zoom < 12.0 && minor.is_finite() && minor < 1e9 { minor *= 2.0; }
+        return (minor, minor * 4.0);
+    }
+    let minor = nice(20.0 / zoom);
+    (minor, nice(minor * 4.0))
+}
+
 fn draw_grid(app: &EditorApp, painter: &egui::Painter, rect: Rect) {
     let cam = &app.camera;
-    let minor = nice(20.0 / cam.zoom);
-    let major = nice(minor * 4.0);
+    let snap = app.settings.snap.then_some(app.settings.snap_grid).filter(|g| g.is_finite() && *g > 0.0);
+    let (minor, major) = grid_steps(cam.zoom, snap);
     let ratio = (major / minor).round().max(1.0) as i64;
     let decimals = if major >= 1.0 { 0 } else { (-major.log10().floor()) as usize };
     let ([x0, y1], [x1, y0]) = (cam.to_world(rect, rect.left_top()), cam.to_world(rect, rect.right_bottom()));
     let font = FontId::proportional(12.0);
     let dim = theme::TEXT_DIM;
-    let fmt = |v: f32| format!("{:.*}", decimals, v + 0.0);
+    let fmt = |v: f32| if snap.is_some() { format!("{}", (v * 100.0).round() / 100.0 + 0.0) } else { format!("{:.*}", decimals, v + 0.0) };
     let range = |a: f32, b: f32| ((a / minor).floor() as i64)..=((b / minor).ceil() as i64);
     // Numbers start below what covers the viewport's top: the guide band and,
     // when shown, the row of playback and physics controls under it.
@@ -2832,6 +2844,16 @@ mod rig_display_tests {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn snap_grid_sets_the_visible_grid_steps() {
+        assert_eq!(super::grid_steps(2.0, Some(10.0)), (10.0, 40.0));
+        assert_eq!(super::grid_steps(0.1, Some(10.0)), (160.0, 640.0));
+        for zoom in [0.1, 1.0, 2.0] {
+            assert_eq!(super::grid_steps(zoom, Some(0.0)), super::grid_steps(zoom, None));
+            assert_eq!(super::grid_steps(zoom, Some(f32::NAN)), super::grid_steps(zoom, None));
+        }
+    }
+
     #[test]
     fn sharp_outlines_stay_near_their_corners() {
         // A long bone tip and a nearly collapsed triangle, the miter worst cases.

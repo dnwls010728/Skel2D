@@ -246,6 +246,7 @@ mod playback_tests {
 pub struct Settings {
     /// Overall UI zoom (1.0 = egui default sizes).
     pub ui_scale: f32,
+    pub show_bones: bool,
     pub show_bone_names: bool,
     pub show_grid: bool,
     /// Ghosts of neighbouring frames in animate mode.
@@ -294,6 +295,7 @@ impl Default for Settings {
         Self {
             ui_scale: 1.0,
             gif: skel2d_render::GifOptions::default(),
+            show_bones: true,
             show_bone_names: false,
             show_grid: true,
             onion_skin: false,
@@ -384,7 +386,6 @@ pub struct EditorApp {
     pub camera: Camera,
     pub drag: Option<Drag>,
     pub vertex_drag: Option<VertexDrag>,
-    pub show_bones: bool,
     pub settings: Settings,
     /// View-only visibility and locking (not saved in the document).
     /// Skins previewed in the viewport, lowest first (view state; the
@@ -485,7 +486,6 @@ impl EditorApp {
             camera: Camera::default(),
             drag: None,
             vertex_drag: None,
-            show_bones: true,
             settings,
             skins: Vec::new(),
             hidden_bones: BTreeSet::new(),
@@ -1652,23 +1652,33 @@ impl EditorApp {
                 }
             });
             ui.menu_button(tr("View"), |ui| {
-                ui.checkbox(&mut self.show_bones, tr("Show bones"));
-                if ui.add(crate::icons::labeled(Icon::FrameAll, tr("Frame all (F)"))).clicked() {
+                ui.checkbox(&mut self.settings.show_bones, tr("Show bones"));
+                ui.checkbox(&mut self.settings.show_bone_names, tr("Bone names"));
+                if ui.add(crate::icons::labeled(Icon::FrameAll, format!("{}    Shift+F", tr("Frame all")))).clicked() {
                     self.camera.needs_fit = true;
+                    ui.close();
                 }
                 ui.checkbox(&mut self.settings.show_grid, tr("Grid"));
                 ui.checkbox(&mut self.settings.carry_meshes, tr("Meshes follow bones in the setup pose"))
                     .on_hover_text(tr("Off: move bones under a mesh without moving the mesh (e.g. to fix joint positions)"));
                 self.ui_size_buttons(ui);
-                ui.horizontal(|ui| {
-                    ui.label(tr("Snap angle"));
-                    ui.add(egui::DragValue::new(&mut self.settings.snap_angle).range(1.0..=90.0).suffix("°"));
-                    ui.label(tr("grid"));
-                    ui.add(egui::DragValue::new(&mut self.settings.snap_grid).range(0.5..=500.0));
+                ui.checkbox(&mut self.settings.snap, tr("Snap"));
+                ui.add_enabled_ui(self.settings.snap, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(tr("Snap angle"));
+                        ui.add(egui::DragValue::new(&mut self.settings.snap_angle).range(1.0..=90.0).suffix("°"));
+                        ui.label(tr("grid"));
+                        ui.add(egui::DragValue::new(&mut self.settings.snap_grid).range(0.5..=500.0));
+                    });
+                });
+                ui.checkbox(&mut self.settings.onion_skin, tr("Onion skin")).on_hover_text(tr("Shows neighbouring frames while an animation is selected"));
+                ui.add_enabled_ui(self.settings.onion_skin, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(tr("Onion frames"));
+                        ui.add(egui::DragValue::new(&mut self.settings.onion_frames).range(1..=6));
+                    });
                 });
                 ui.horizontal(|ui| {
-                    ui.label(tr("Onion frames"));
-                    ui.add(egui::DragValue::new(&mut self.settings.onion_frames).range(1..=6));
                     ui.label("FPS");
                     ui.add(egui::DragValue::new(&mut self.settings.fps).range(1.0..=240.0));
                 });
@@ -2396,5 +2406,19 @@ mod step_tests {
         // Text that is already Korean was translated by the caller (it is passed through `tr` twice).
         missing.retain(|k| k.chars().any(|c| c.is_ascii_alphabetic()) && !k.chars().any(|c| ('\u{AC00}'..='\u{D7A3}').contains(&c)) && !crate::i18n::has_korean(k));
         assert!(missing.is_empty(), "no Korean text for:\n{}", missing.join("\n"));
+    }
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::Settings;
+
+    #[test]
+    fn show_bones_defaults_on_and_round_trips() {
+        let old: Settings = serde_json::from_str("{\"show_grid\":false}").unwrap();
+        assert!(old.show_bones);
+        let hidden = Settings { show_bones: false, ..Settings::default() };
+        let back: Settings = serde_json::from_str(&serde_json::to_string(&hidden).unwrap()).unwrap();
+        assert!(!back.show_bones);
     }
 }
