@@ -2,8 +2,8 @@
 //! placement a `layers.json` manifest needs. With [`Split::Groups`] every
 //! top-level group is one part (its layers composited, e.g. line art over
 //! flat color) and a layer outside any group is a part of its own; with
-//! [`Split::Layers`] every layer is a part and groups only organize them
-//! (the Spine-style layout); with [`Split::Innermost`] every innermost group is
+//! [`Split::Layers`] every layer is a part and groups only organize them;
+//! with [`Split::Innermost`] every innermost group is
 //! a part. [`Hidden`] picks what happens to hidden layers.
 //! A clipped layer is painted onto its base as Photoshop shows it, never as a
 //! part of its own, so it cannot grow the part past its base. A paper layer

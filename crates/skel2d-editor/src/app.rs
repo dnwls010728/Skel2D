@@ -48,14 +48,14 @@ const OPEN: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::O)
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
-    /// Spine's Pose tool: select, drag a bone to move it (near its tip: rotate it).
+    /// Pose tool: select, drag a bone to move it (near its tip: rotate it).
     Select,
     Rotate,
     Translate,
     Scale,
     /// Skews the selected bone: the X handle shears its X axis, the Y handle its Y axis.
     Shear,
-    /// Spine's Create tool: drag to draw a new bone.
+    /// Create tool: drag to draw a new bone.
     Bone,
     /// Add, remove and move vertices of the selected mesh.
     Mesh,
@@ -64,7 +64,7 @@ pub enum Tool {
 }
 
 impl Tool {
-    /// Toolbar order and Spine's default hotkeys (Mesh has none in Spine).
+    /// Toolbar order and default hotkeys (Mesh has none).
     pub const ALL: [(Tool, &'static str, Key); 8] = [
         (Tool::Select, "Pose (B)", Key::B),
         (Tool::Bone, "Create (N)", Key::N),
@@ -387,7 +387,7 @@ pub struct EditorApp {
     pub show_bones: bool,
     pub settings: Settings,
     /// View-only visibility and locking (not saved in the document).
-    /// Skins previewed in the viewport, lowest first (view state; Spine's
+    /// Skins previewed in the viewport, lowest first (view state; the
     /// Skins view pins several the same way). Edits to an attachment a skin
     /// supplies go into that skin.
     pub skins: Vec<String>,
@@ -536,7 +536,7 @@ impl EditorApp {
     }
 
     /// Pose at the playback clock: the main animation, then the preview
-    /// layers (each looping over its own duration), like Spine tracks.
+    /// layers (each looping over its own duration), one per track.
     pub fn pose(&self) -> Pose {
         if self.tool==Tool::Weights && self.playback.anim.is_none() {
             return crate::viewport::weight_test_pose(&self.doc,&self.skins,self.view.pose_rotation.as_ref());
@@ -778,7 +778,7 @@ impl EditorApp {
     }
 
     /// Drops unkeyed changes once the animation or playhead moves on, and
-    /// says so (Spine discards them silently).
+    /// says so rather than discarding them silently.
     /// Every new `status` text also becomes a toast (one place instead of each
     /// of the places that set it). The same text arriving again while it shows
     /// counts up instead of stacking.
@@ -903,7 +903,7 @@ impl EditorApp {
     }
 
     /// Edits of an attachment that a previewed skin supplies go into that
-    /// skin (Spine edits whatever the active skin shows), so panels and tools
+    /// skin (not whatever the active skin shows), so panels and tools
     /// can keep writing slot-level ops.
     pub(crate) fn retarget_skins(&self, ops: Vec<Op>) -> Vec<Op> {
         if self.skins.is_empty() {
@@ -2044,7 +2044,7 @@ impl EditorApp {
         }
         if opts.toast_demo {
             use crate::toasts::Kind;
-            app.toasts.push(Kind::Info, "Opened spineboy.skel.json");
+            app.toasts.push(Kind::Info, "Opened character.skel.json");
             app.toasts.push(Kind::Success, "Keyed 3 edited properties");
             for _ in 0..4 {
                 app.toasts.push(Kind::Warning, "Not applied (mouth): the mesh outline would cross itself. Move the point a shorter way.");

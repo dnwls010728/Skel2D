@@ -39,8 +39,8 @@ fn axis_shear_and_animation_offsets_interpolate_and_survive_rename() {
 }
 
 #[test]
-fn inheritance_matches_spine_42_axis_cases_with_and_without_reflection() {
-    // Expected Spine 4.2 behaviour, as data: parent rotation 90°, scale ±2,3;
+fn inheritance_matches_axis_cases_with_and_without_reflection() {
+    // Expected behaviour, as data: parent rotation 90°, scale ±2,3;
     // local child is identity at (5,1).
     for mirror in [false, true] {
         for (mode, positive, negative) in [
@@ -61,7 +61,7 @@ fn inheritance_matches_spine_42_axis_cases_with_and_without_reflection() {
 
 #[test]
 fn complex_inheritance_bases_match_reference_with_parent_shear_and_reflection() {
-    // Expected Spine 4.2 behaviour as data, computed separately in f64.
+    // Expected behaviour as data, computed separately in f64.
     let parent = Affine::from_trss(0.0, 0.0, 37.0, -2.0, 0.7, 13.0, -18.0);
     for (inherit, expected) in [
         (Inherit::Normal, [0.82865883,0.6127693,-0.07647946,0.92800867]),

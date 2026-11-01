@@ -516,7 +516,7 @@ fn trace(
         });
     }
     ops.push(set_attachment(slot, skin, mesh));
-    // Spine과 다름: retracing preserves each owning skin's deformation
+    // Retracing preserves each owning skin's deformation
     // by sampling the original setup triangles, including key curves.
     if let Some(remap) = remap {
         // Linked children with their own timelines share the parent's vertices.

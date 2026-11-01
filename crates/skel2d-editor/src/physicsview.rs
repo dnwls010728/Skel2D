@@ -1,6 +1,6 @@
 //! Physics while editing. Playing keeps one live simulation running across
 //! loops. Stopped, the pose at the playhead comes from a cache of every frame
-//! simulated from time 0. Spine과 다름: scrubbing in either direction shows the
+//! simulated from time 0. Scrubbing in either direction shows the
 //! same result as playing up to that time, instead of jumping or resetting.
 
 use std::cell::RefCell;

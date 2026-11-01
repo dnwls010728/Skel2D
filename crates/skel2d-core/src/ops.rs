@@ -1756,7 +1756,7 @@ fn rename_attachment(doc: &mut Document, slot: &str, from: &str, to: &str, skin:
         let target = match owner { None => doc.slots[si].attachment(to), Some(k) => doc.skin(k).and_then(|s| s.attachment(slot, to)) };
         if target.is_some() { return Err(format!("attachment {to:?} already exists")); }
     }
-    // Spine과 다름: local and all-skin placeholder renames are explicit ops.
+    // Local and all-skin placeholder renames are explicit ops.
     for owner in owners {
         let atts = match &owner {
             None => &mut doc.slots[si].attachments,
@@ -2317,7 +2317,7 @@ fn topology_edit(doc: &mut Document, at: MeshAt, change: impl FnOnce(&Mesh, &str
     if let Some(problem) = mesh_ref(doc, at).ok().and_then(crate::mesh::hull_crossing) { return Err(problem); }
     let bone = doc.slot(at.0).ok_or_else(|| format!("slot {:?} does not exist", at.0))?.bone.clone();
     let edit = change(mesh_ref(doc, at)?, &bone)?;
-    // Spine과 다름: added offsets are interpolated, removed indices are
+    // Added offsets are interpolated, removed indices are
     // dropped, and every surviving vertex keeps its own keys and weights.
     // Linked children with their own timelines share these vertex indices.
     let mut paths = vec![(at.2.map(str::to_string), at.1.to_string())];
@@ -3146,7 +3146,7 @@ mod face_tests {
     use super::*;
     use crate::pose::{Pose, Track};
 
-    /// A face rigged the Spine way: a face pose is a one-frame animation on
+    /// A face rigged with layered animations: a face pose is a one-frame animation on
     /// a lower track; blink and talk animations play on top of it.
     fn face() -> Document {
         let region = |n: &str| format!(r#"{{"type":"region","name":"{n}","width":10,"height":5}}"#);

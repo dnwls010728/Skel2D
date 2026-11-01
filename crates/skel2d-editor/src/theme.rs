@@ -37,7 +37,7 @@ pub const TOAST_WARN_SECS: f32 = 6.0;
 pub const TOAST_ERROR_SECS: f32 = 10.0;
 /// Faint non-simulated bone shown behind a simulated pose.
 pub const PHYSICS_GHOST: Color32 = Color32::from_rgba_premultiplied(40, 52, 49, 56);
-/// Key button states, as Spine colors them.
+/// Key button states.
 pub const KEY_SET: Color32 = Color32::from_rgb(235, 72, 64);
 pub const KEY_CHANGED: Color32 = Color32::from_rgb(255, 156, 40);
 pub const KEY_NONE: Color32 = Color32::from_rgb(96, 200, 96);
@@ -56,7 +56,7 @@ pub const TEXT_DIM: Color32 = Color32::from_gray(176);
 pub const PANEL_BG: Color32 = Color32::from_gray(43);
 /// Section header strips.
 pub const HEADER_BG: Color32 = Color32::from_gray(56);
-/// Spine-like neutral mid-gray viewport, so both dark and light art read.
+/// Neutral mid-gray viewport, so both dark and light art read.
 pub const VIEWPORT_BG: Color32 = Color32::from_gray(66);
 pub const GRID_MINOR: Color32 = Color32::from_gray(72);
 pub const GRID_MAJOR: Color32 = Color32::from_gray(86);
@@ -124,7 +124,7 @@ pub fn apply(ctx: &egui::Context) {
             (TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace)),
         ]
         .into();
-        // Compact, Spine-like density.
+        // Compact density.
         style.spacing.item_spacing = egui::vec2(6.0, 4.0);
         style.spacing.button_padding = egui::vec2(8.0, 4.0);
         style.spacing.interact_size = egui::vec2(40.0, MIN_CLICK_H);

@@ -781,7 +781,7 @@ fn animations_view(app: &mut EditorApp, ui: &mut egui::Ui, tc: &mut TreeCtx) {
         let layered = app.playback.layers.iter().any(|layer| layer.anim == name);
         let meta = if layered { format!("{} · {:.2}s", tr("layer"), duration) } else { format!("{duration:.2}s") };
         let out = tree_row(ui, tc, RowSpec { key: format!("anim:{name}"), depth: 0, kind: NodeKind::Animation, name: &name, color: if current { ANIMATE } else { TEXT }, meta, selected: current, accent: ANIMATE, ..Default::default() });
-        // Spine: picking an animation in the tree enters animate mode on it.
+        // Picking an animation in the tree enters animate mode on it.
         let r = out.main.on_hover_text(tr("Edit this animation (animate mode); click again to return to the setup pose · right-click: rename, delete"));
         if r.clicked() {
             if current {
@@ -827,7 +827,7 @@ struct RowSpec<'a> {
     eye: Option<bool>,
     /// `Some(locked)` draws the lock column (shown while locked or hovered).
     lock: Option<bool>,
-    /// `Some(shown)`: Spine's attachment dot before the icon.
+    /// `Some(shown)`: the attachment dot before the icon.
     dot: Option<bool>,
     draggable: bool,
     /// The slot this one clips to: a mark before the name, naming it on hover.
@@ -1301,7 +1301,7 @@ fn bone_row(app: &mut EditorApp, ui: &mut egui::Ui, name: &str, depth: usize, tc
         for child in children {
             bone_row(app, ui, &child, depth + 1, tc);
         }
-        // Slots sit under their bone, attachments under their slot, as in Spine's tree.
+        // Slots sit under their bone, attachments under their slot.
         if show_slots {
             for slot in slots_here {
                 slot_node(app, ui, &slot, depth + 1, tc);
@@ -1914,7 +1914,7 @@ fn animate_block(app: &mut EditorApp, ui: &mut egui::Ui, bone: &Bone) {
     }
 }
 
-/// Key state of one animated property, as Spine colors its key buttons.
+/// Key state of one animated property, as its key button is colored.
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum KeyState {
     /// No keys for this property in the animation.
@@ -2135,7 +2135,7 @@ pub fn go_to_linked_parent(app: &mut EditorApp, slot: &str, link: &skel2d_core::
     app.selection.attachment = Some(link.parent.clone());
 }
 
-/// The Weights tool's panel, after Spine's Weights view: brush mode and
+/// The Weights tool's panel: brush mode and
 /// settings, the mesh's bones in their overlay colors with lock toggles and
 /// the picked vertices' weights (editable directly), and Smooth / Prune /
 /// Swap. Returns the edit to apply.

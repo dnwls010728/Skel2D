@@ -1,7 +1,8 @@
 //! Physics constraints: bones lag behind their animated pose on damped springs.
 //!
-//! The integrator is Skel2D's own (semi-implicit Euler at a fixed step), so
-//! values tuned elsewhere look similar without being numerically identical.
+//! Each fixed step solves the spring exactly rather than approximating it, so
+//! results stay stable at any stiffness. Values tuned for other simulators may
+//! look similar but are not numerically identical.
 
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -10,7 +11,7 @@ use crate::math::Affine;
 use crate::model::{Document, PhysicsConstraint, Vec2};
 use crate::pose::{Pose, Track, sample};
 
-/// How physics takes part in pose evaluation (Spine's `Physics` enum).
+/// How physics takes part in pose evaluation (the `Physics` mode).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PhysicsMode {
     /// Constraints do nothing: the plain animated pose.
@@ -74,7 +75,7 @@ pub struct PhysicsState {
 
 impl PhysicsState {
     /// The skeleton moved in the world by this much since the last update:
-    /// bodies lag behind as if their bones had moved (Spine `physicsTranslate`).
+    /// bodies lag behind as if their bones had moved.
     pub fn translate(&mut self, x: f32, y: f32) {
         for b in &mut self.bodies {
             for moved in [&mut b.moved, &mut b.moved_tip] {
@@ -84,7 +85,7 @@ impl PhysicsState {
         }
     }
 
-    /// The skeleton rotated about a world point (Spine `physicsRotate`).
+    /// The skeleton rotated about a world point: bodies lag behind that turn.
     pub fn rotate(&mut self, center: Vec2, degrees: f32) {
         let (s, c) = degrees.to_radians().sin_cos();
         let shift = |p: Vec2| {
@@ -180,7 +181,7 @@ pub(crate) fn solve(doc: &Document, c: &PhysicsConstraint, body: &mut BodyState,
         if steps > 0 {
             body.steps = due;
             if mix > 0.0 {
-                integrate(c, body, steps, Forces { inertia, strength, damping, mass, wind, gravity }, position, tip, length);
+                integrate(c, body, steps, Forces { inertia, strength, damping, mass, wind, gravity }, (world, tip));
             }
             body.last = position;
             body.last_tip = tip;
@@ -191,22 +192,18 @@ pub(crate) fn solve(doc: &Document, c: &PhysicsConstraint, body: &mut BodyState,
     if mix <= 0.0 {
         return None;
     }
-    let (mut w, dx, dy) = (*world, body.x * c.x * mix, body.y * c.y * mix);
-    w.tx += dx;
-    w.ty += dy;
-    let spin = |w: &mut Affine, radians: f32, both: bool| {
-        let (s, co) = radians.sin_cos();
-        (w.a, w.b) = (w.a * co - w.b * s, w.a * s + w.b * co);
-        if both {
-            (w.c, w.d) = (w.c * co - w.d * s, w.c * s + w.d * co);
-        }
-    };
-    spin(&mut w, body.rotate * c.rotate * mix, true);
-    spin(&mut w, body.rotate * c.shear_x * mix, false);
-    let scale = 1.0 + body.scale * c.scale_x * mix;
-    w.a *= scale;
-    w.b *= scale;
-    (w != *world).then_some(w)
+    // The body state is the raw simulation; influences and mix only decide how
+    // much of it reaches the bone. Untouched bones stay bit-identical.
+    let shift = [body.x * c.x * mix, body.y * c.y * mix];
+    let turn_y = body.rotate * c.rotate * mix;
+    let turn_x = turn_y + body.rotate * c.shear_x * mix;
+    let stretch = (1.0 + body.scale * c.scale_x * mix).max(MIN_STRETCH);
+    if shift == [0.0, 0.0] && turn_x == 0.0 && turn_y == 0.0 && stretch == 1.0 {
+        return None;
+    }
+    let [a, b] = turned(world.a * stretch, world.b * stretch, turn_x);
+    let [c_axis, d] = turned(world.c, world.d, turn_y);
+    Some(Affine { a, b, c: c_axis, d, tx: world.tx + shift[0], ty: world.ty + shift[1] })
 }
 
 /// More steps than this in one update are dropped, so that a long stall (a
@@ -222,50 +219,141 @@ struct Forces {
     gravity: f32,
 }
 
-fn integrate(c: &PhysicsConstraint, body: &mut BodyState, steps: u64, f: Forces, position: Vec2, tip: Vec2, length: f32) {
+/// A collapsed x axis would make the bone singular and unrecoverable into locals.
+const MIN_STRETCH: f32 = 0.01;
+
+/// Shortest bone used as a lever, so tiny or zero-length bones keep a sane
+/// conversion from world units at the tip to radians.
+const MIN_LEVER: f32 = 1.0;
+
+fn turned(x: f32, y: f32, radians: f32) -> Vec2 {
+    let (s, c) = radians.sin_cos();
+    [x * c - y * s, x * s + y * c]
+}
+
+fn dot(a: Vec2, b: Vec2) -> f32 {
+    a[0] * b[0] + a[1] * b[1]
+}
+
+/// Shortens a vector to `max` without changing its direction.
+fn capped(v: Vec2, max: f32) -> Vec2 {
+    let len = v[0].hypot(v[1]);
+    if len > max { [v[0] / len * max, v[1] / len * max] } else { v }
+}
+
+/// What one fixed step does to a mass on a spring: the closed-form solution of
+/// the undamped oscillator over the step, then the damping as a separate factor.
+/// Being exact, it cannot gain energy at any stiffness, damping 1 keeps all of
+/// it, and it comes to rest precisely at force / strength.
+struct SpringStep {
+    h: f32,
+    spring: f32,
+    inv_mass: f32,
+    omega: f32,
+    sin: f32,
+    cos: f32,
+    keep: f32,
+}
+
+impl SpringStep {
+    fn new(h: f32, f: &Forces) -> Self {
+        let omega = (f.strength * f.mass).sqrt();
+        let (sin, cos) = (omega * h).sin_cos();
+        Self { h, spring: f.strength, inv_mass: f.mass, omega, sin, cos, keep: f.damping.powf(h * 60.0) }
+    }
+
+    /// Advances one channel under a constant `force`.
+    fn advance(&self, value: &mut f32, speed: &mut f32, force: f32) {
+        let (start, h) = (*value, self.h);
+        if self.omega * h >= std::f32::consts::PI {
+            // Faster than the step can show: the body simply sits at its rest point.
+            *value = force / self.spring;
+            *speed = 0.0;
+        } else if self.omega * h < 1e-3 {
+            // No usable spring: constant acceleration, which the general form
+            // below cannot express (it divides by omega).
+            let accel = self.inv_mass * (force - self.spring * *value);
+            *value += h * (*speed + 0.5 * accel * h);
+            *speed += accel * h;
+        } else {
+            let rest = force / self.spring;
+            let away = *value - rest;
+            *value = rest + away * self.cos + *speed * self.sin / self.omega;
+            *speed = *speed * self.cos - away * self.omega * self.sin;
+        }
+        *speed *= self.keep;
+        if !value.is_finite() || !speed.is_finite() {
+            *value = start;
+            *speed = 0.0;
+        }
+    }
+}
+
+/// Runs `steps` fixed steps. Three independent channels share the same spring:
+/// a point mass at the bone's origin (x, y), a rod swinging about that origin
+/// (rotate, also driving shear), and the rod's length (scale). Movement since
+/// the last update is spread evenly over the steps, and a channel lags by the
+/// `inertia` share of it, opposite to the motion.
+fn integrate(c: &PhysicsConstraint, body: &mut BodyState, steps: u64, f: Forces, (world, tip): (&Affine, Vec2)) {
+    let position = [world.tx, world.ty];
     let h = c.step;
-    // Movement faster than the limit is lost, so teleports do not fling bodies.
-    let reach = c.limit * h * steps as f32;
-    let travel = |to: Vec2, from: Vec2, moved: Vec2| [(to[0] - from[0] + moved[0]).clamp(-reach, reach), (to[1] - from[1] + moved[1]).clamp(-reach, reach)];
-    let d = travel(position, body.last, body.moved);
-    if c.x > 0.0 { body.x -= d[0] * f.inertia; }
-    if c.y > 0.0 { body.y -= d[1] * f.inertia; }
-
-    let angular = (c.rotate > 0.0 || c.shear_x > 0.0) && length != 0.0;
-    let stretch = c.scale_x > 0.0 && length != 0.0;
-    // The bone's axis per unit of length, for forces acting on its tip.
-    let axis = if length != 0.0 { [(tip[0] - position[0]) / length.abs(), (tip[1] - position[1]) / length.abs()] } else { [1.0, 0.0] };
-    let unit = axis[0].hypot(axis[1]).max(1e-6);
-    let axis = [axis[0] / unit, axis[1] / unit];
-    let reach_length = length.abs().max(1e-6);
-    let across = |v: Vec2| (axis[0] * v[1] - axis[1] * v[0]) / reach_length;
-    let along = |v: Vec2| (axis[0] * v[0] + axis[1] * v[1]) / reach_length;
-    let t = travel(tip, body.last_tip, body.moved_tip);
-    if angular { body.rotate -= across(t) * f.inertia; }
-    if stretch { body.scale -= along(t) * f.inertia; }
-
-    // Past k*m*h^2 = 4 semi-implicit Euler diverges: stiffer springs just settle.
-    let k = f.strength.min(3.9 / (f.mass * h * h));
-    let keep = f.damping.powf(60.0 * h);
+    let share = f.inertia / steps as f32;
+    let budget = c.limit * h * steps as f32;
+    let root_motion = capped([position[0] - body.last[0] + body.moved[0], position[1] - body.last[1] + body.moved[1]], budget);
+    let tip_motion = capped([tip[0] - body.last_tip[0] + body.moved_tip[0], tip[1] - body.last_tip[1] + body.moved_tip[1]], budget);
+    // Where the origin itself lags, the tip does not have to swing to make up
+    // for that part of the movement: only what is left turns the rod.
+    let rod_motion = [tip_motion[0] - c.x * root_motion[0], tip_motion[1] - c.y * root_motion[1]];
     let force = [f.wind, -f.gravity];
-    let limit = c.limit;
-    let angular_limit = limit / reach_length;
+    let lever = (tip[0] - position[0]).hypot(tip[1] - position[1]).max(MIN_LEVER);
+    let heading = world.b.atan2(world.a);
+    let spring = SpringStep::new(h, &f);
+    let (move_x, move_y) = (c.x != 0.0, c.y != 0.0);
+    let swing = c.rotate != 0.0 || c.shear_x != 0.0;
+    let extend = c.scale_x != 0.0;
+    if !move_x { (body.x, body.vx) = (0.0, 0.0); }
+    if !move_y { (body.y, body.vy) = (0.0, 0.0); }
+    if !swing { (body.rotate, body.vrotate) = (0.0, 0.0); }
+    if !extend { (body.scale, body.vscale) = (0.0, 0.0); }
+
+    // The limit is in world units: a rod's tip travels `lever` per radian.
+    let (point_step, rod_speed, rod_step) = (c.limit * h, c.limit / lever, c.limit * h / lever);
+    let bounded = |value: f32, before: f32| before + (value - before).clamp(-rod_step, rod_step);
     for _ in 0..steps {
-        if c.x > 0.0 {
-            body.vx = ((body.vx + f.mass * (force[0] - k * body.x) * h) * keep).clamp(-limit, limit);
-            body.x += body.vx * h;
+        if move_x || move_y {
+            if move_x { body.x -= share * root_motion[0]; }
+            if move_y { body.y -= share * root_motion[1]; }
+            let before = [body.x, body.y];
+            if move_x { spring.advance(&mut body.x, &mut body.vx, force[0]); }
+            if move_y { spring.advance(&mut body.y, &mut body.vy, force[1]); }
+            let moved = capped([body.x - before[0], body.y - before[1]], point_step);
+            (body.x, body.y) = (before[0] + moved[0], before[1] + moved[1]);
+            // The second clamp only stops rounding from landing just past the limit.
+            let v = capped([body.vx, body.vy], c.limit);
+            (body.vx, body.vy) = (v[0].clamp(-c.limit, c.limit), v[1].clamp(-c.limit, c.limit));
         }
-        if c.y > 0.0 {
-            body.vy = ((body.vy + f.mass * (force[1] - k * body.y) * h) * keep).clamp(-limit, limit);
-            body.y += body.vy * h;
-        }
-        if angular {
-            body.vrotate = ((body.vrotate + f.mass * (across(force) - k * body.rotate) * h) * keep).clamp(-angular_limit, angular_limit);
-            body.rotate += body.vrotate * h;
-        }
-        if stretch {
-            body.vscale = ((body.vscale + f.mass * (along(force) - k * body.scale) * h) * keep).clamp(-angular_limit, angular_limit);
-            body.scale += body.vscale * h;
+        if swing || extend {
+            // The rod's axes follow its current swing, so a falling bone ends up
+            // hanging rather than turning forever.
+            let radial = turned(1.0, 0.0, heading + body.rotate);
+            let tangent = [-radial[1], radial[0]];
+            if swing {
+                body.rotate -= share * dot(rod_motion, tangent) / lever;
+                let before = body.rotate;
+                spring.advance(&mut body.rotate, &mut body.vrotate, dot(force, tangent) / lever);
+                body.rotate = bounded(body.rotate, before);
+                // Whole turns look the same; keeping within one turn lets the
+                // spring take the short way back.
+                body.rotate = (body.rotate + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
+                body.vrotate = body.vrotate.clamp(-rod_speed, rod_speed);
+            }
+            if extend {
+                body.scale -= share * dot(rod_motion, radial) / lever;
+                let before = body.scale;
+                spring.advance(&mut body.scale, &mut body.vscale, dot(force, radial) / lever);
+                body.scale = bounded(body.scale, before);
+                body.vscale = body.vscale.clamp(-rod_speed, rod_speed);
+            }
         }
     }
 }

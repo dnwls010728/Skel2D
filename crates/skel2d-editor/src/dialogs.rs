@@ -1094,7 +1094,7 @@ impl MeshOptions {
         };
         if signature == self.signature { return false; }
         self.signature = signature;
-        // Spine과 다름: parameter changes preview immediately without a Trace button.
+        // Parameter changes preview immediately; there is no Trace button.
         match result.and_then(|ops| skel2d_rig::apply_any(&self.base, &app.base_dir(), &ops).map_err(|e|e.to_string())) {
             Ok(report) => {
                 self.summary = report.meshes.last().map(|m|crate::tf!("{} vertices · {} triangles",m.vertices,m.triangles)).unwrap_or_default();

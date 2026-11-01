@@ -1504,7 +1504,7 @@ enum Item {
 
 fn build_items(app: &EditorApp, anim: &Animation) -> Vec<Item> {
     // With a bone selected only its rows (and those of what touches it) show,
-    // as in Spine; the "All" toggle in the toolbar lifts that.
+    // the "All" toggle in the toolbar lifts that.
     let sel = &app.selection;
     let sel_bone = sel.bone.as_deref();
     let narrow = !app.timeline.show_all && sel_bone.is_some();
@@ -1587,7 +1587,7 @@ fn build_items(app: &EditorApp, anim: &Animation) -> Vec<Item> {
         }
     }
     let mut items = Vec::new();
-    // Draw order and events close the list, as in Spine.
+    // Draw order and events close the list.
     for (title, color, rows) in [("BONES", BONE, bones), ("SLOTS", SLOT, slots), ("IK", IK, iks), ("PHYSICS", PHYSICS, physics), ("DRAW ORDER", theme::DRAW_ORDER, draw_order), ("EVENTS", theme::EVENT, events)] {
         if !rows.is_empty() {
             items.push(Item::Header(title, color));

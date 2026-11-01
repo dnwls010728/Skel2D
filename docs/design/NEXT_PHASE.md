@@ -10,11 +10,11 @@
 ### 0.1 제품 목표
 하나의 프로그램으로 다음 세 가지를 동시에 만족한다.
 1. **AI가 쉽게 접근하고 제어할 수 있다.** 에디터에서 할 수 있는 일은 전부 op(`skel2d_core::Op`)로도 할 수 있고, CLI·HTTP(`serve`)·MCP에서 같은 op로 호출된다. 에디터 전용 코드가 유일한 수단이 되면 안 된다.
-2. **Spine(Essential/Professional)이 제공하는 기능을 구현한다.** 데이터 모델과 평가 결과는 Spine 4.2 런타임 동작을 기준으로 맞춘다(내보내기 1:1 매핑 대비).
-3. **Spine 에디터에서 불편했던 부분은 고친다.** 고친 지점은 코드 주석과 §6.3에 "Spine과 다름"으로 남긴다.
+2. **2D 스켈레탈 애니메이션 에디터에 기대되는 기능을 구현한다.** 데이터 모델과 평가 결과는 널리 쓰이는 2D 스켈레탈 런타임의 4.2 세대 동작을 기준으로 맞춘다(내보내기 1:1 매핑 대비).
+3. **작업 중 불편하기 쉬운 부분은 고친다.** 고친 지점은 코드 주석과 §6.3에 남긴다.
 
 ### 0.2 이번 범위
-**메쉬, 가중치, 스킨, 물리**까지 완성한다. 각각 "Spine에 있는 기능 + AI op 동등성 + 개선된 에디터 UX"를 모두 갖춘 상태가 완료다.
+**메쉬, 가중치, 스킨, 물리**까지 완성한다. 각각 "기능 + AI op 동등성 + 개선된 에디터 UX"를 모두 갖춘 상태가 완료다.
 
 범위 밖(보류, §5 백로그): IK 확장, 트랜스폼/패스 제약, 블렌드 모드·다크 틴트(wgpu 뷰포트), 애니메이션 보강(그래프 에디터·이벤트·드로우 오더 타임라인 등), 포인트/바운딩 박스/클리핑/패스 어태치먼트, 내보내기.
 단, 이번 범위의 기능이 의존하는 부분(예: 물리 제약의 키 타임라인, 링크드 메쉬)은 이번에 구현한다.
@@ -59,18 +59,18 @@ v1 문서 기준 P0-1, P0-2, P0-3, **P1(셰어 + 상속 모드)까지 코드에 
 | 좌우 미러 | op 있음 | `mirror_weights` |
 | 브러시(Add/Remove/Replace, 반경·강도·목표·페더) | 에디터 | 결과는 `set_vertices`로 기록 (정상) |
 | 스무스 / 프루닝(최대 본 수·임계값) / 본 교환 / 복사·붙여넣기 / 본 잠금 | **에디터 전용 알고리즘** | `meshedit.rs::smooth_weights/prune_weights/swap_weights/copy_weights/paste_weights` |
-| 바인딩 본 목록 관리(본 추가·제거, Spine "Bones" 목록) | 부분 | `bones_used`로 표시만 |
+| 바인딩 본 목록 관리(본 추가·제거, "Bones" 목록) | 부분 | `bones_used`로 표시만 |
 | 가중치 시각화(본별 색 / 선택 본 히트맵) | 있음 | 뷰포트 |
 
 ### 1.4 스킨
 | 기능 | 상태 | 비고 |
 |---|---|---|
 | `Document.skins`, 플레이스홀더 기반 어태치먼트, skin-required 본, 스킨 IK | 완료 | `model.rs::Skin`, `resolve_attachment`, `bone_active` |
-| 다중 스킨 동시 미리보기(나중 스킨 우선), 편집 자동 전환 | 완료 (Spine과 다름) | `EditorApp::retarget_skins` |
+| 다중 스킨 동시 미리보기(나중 스킨 우선), 편집 자동 전환 | 완료 | `EditorApp::retarget_skins` |
 | op: add/set/remove_skin, set/remove_skin_attachment, 메쉬 op의 `skin` 필드 | 완료 | |
 | CLI/HTTP/MCP `--skin`/`skins` | 완료 | |
 | 에디터 스킨 탭·인스펙터·슬롯 "스킨에 추가" | 완료 | `panels.rs::skins_view/skin_properties/slot_skins_section` |
-| **디폼 키가 스킨을 구분하지 않음** | **버그** | `SlotTimelines.deform`가 어태치먼트 이름만으로 키잉 → 기본 스킨과 다른 스킨이 같은 플레이스홀더에 정점 수가 다른 메쉬를 두면 키가 충돌. Spine은 `deform[skin][slot][attachment]` |
+| **디폼 키가 스킨을 구분하지 않음** | **버그** | `SlotTimelines.deform`가 어태치먼트 이름만으로 키잉 → 기본 스킨과 다른 스킨이 같은 플레이스홀더에 정점 수가 다른 메쉬를 두면 키가 충돌. 목표 구조는 `deform[skin][slot][attachment]` |
 | 스킨 제약이 IK 전용(`Skin.ik`) | 부분 | 물리 제약 추가 시 일반화 필요 |
 | 링크드 메쉬(스킨 간 기하·가중치 공유) | 없음 | |
 | 어태치먼트 이름 변경 op | 없음 | v1 P0-2에서 보류 |
@@ -104,7 +104,7 @@ v1 문서 기준 P0-1, P0-2, P0-3, **P1(셰어 + 상속 모드)까지 코드에 
 **규칙**: 에디터의 메쉬/가중치 버튼은 전부 op 하나를 만든다. 브러시처럼 연속 입력은 드래그 중 `app.preview`, 놓을 때 `set_vertices` 한 번(현행 유지).
 
 ### D2. 디폼 키를 스킨별로
-- 모델: `SlotTimelines.deform: BTreeMap<String, Vec<Key<..>>>`(키 = 어태치먼트 이름)에 **스킨 차원 추가**. 새 필드 `Animation.deform: BTreeMap<String /*skin, 기본은 "default"*/, BTreeMap<String /*slot*/, BTreeMap<String /*attachment*/, Vec<Key<Vec<Vec2>>>>>>` (Spine JSON과 같은 모양).
+- 모델: `SlotTimelines.deform: BTreeMap<String, Vec<Key<..>>>`(키 = 어태치먼트 이름)에 **스킨 차원 추가**. 새 필드 `Animation.deform: BTreeMap<String /*skin, 기본은 "default"*/, BTreeMap<String /*slot*/, BTreeMap<String /*attachment*/, Vec<Key<Vec<Vec2>>>>>>` (스킨 → 슬롯 → 어태치먼트 순의 중첩 모양).
 - 마이그레이션(`lib.rs` 로드 단계): 기존 `slots.*.deform`을 `deform.default.*`로 옮긴다. 기존 키는 기본 스킨(슬롯 자체 어태치먼트)용이었으므로 의미 보존.
 - 평가: 슬롯이 표시하는 어태치먼트를 해석할 때 **어느 스킨에서 왔는지**도 돌려준다(`Document::resolve_attachment_from -> (Option<&str> skin, &Attachment)`), 디폼은 그 스킨의 키를 쓴다.
 - op: `key_deform`, `remove_key`, `clear_timeline`에 `skin: Option<String>` 추가(없으면 기본). 스킨/어태치먼트 이름 변경·삭제 시 참조 정리.
@@ -115,9 +115,9 @@ v1 문서 기준 P0-1, P0-2, P0-3, **P1(셰어 + 상속 모드)까지 코드에 
 - 제약 이름은 종류와 관계없이 문서 전체에서 유일(`validate`). 이미 IK와 물리가 같은 `ConstraintRef` 스케줄에 오르므로 이름 공간도 하나로.
 - 스킨 소유 제약: 해당 스킨이 비활성이면 스케줄에서 제외(현 IK 동작을 일반화).
 
-### D4. 물리: 순수 포즈 + 상태 있는 스텝 (Spine `Physics` 모드와 동일 개념)
+### D4. 물리: 순수 포즈 + 상태 있는 스텝 (`Physics` 모드 개념)
 ```rust
-pub enum PhysicsMode { None, Reset, Update, Pose }   // Spine Physics enum과 1:1
+pub enum PhysicsMode { None, Reset, Update, Pose }   // 물리 모드 enum
 pub struct PhysicsState { bodies: Vec<BodyState>, time: f32 }   // 제약 순서대로
 impl Pose {
     pub fn compute_skinned(doc, tracks, skins) -> Pose;                    // 기존, 물리 None (호출자 불변)
@@ -129,7 +129,7 @@ impl Pose {
 ```
 - `compute_skinned`는 내부적으로 `compute_physics(.., PhysicsMode::None, 0)`을 부른다(코드 경로 하나).
 - 시간·스텝은 `f32` 누적 오차를 피하려고 **정수 스텝 카운트**로 진행한다(`steps = floor((time) / step)`), 결정성 테스트 대상.
-- 스켈레톤 전체 이동(Spine `physicsTranslate/physicsRotate`)을 `PhysicsState`에 받는 API를 둔다: 에디터에서 루트를 끌면 머리카락이 흔들리고, AI는 `simulate`에 "스켈레톤 이동 경로"를 줘서 같은 결과를 재현한다.
+- 스켈레톤 전체 이동(`physicsTranslate/physicsRotate`)을 `PhysicsState`에 받는 API를 둔다: 에디터에서 루트를 끌면 머리카락이 흔들리고, AI는 `simulate`에 "스켈레톤 이동 경로"를 줘서 같은 결과를 재현한다.
 
 ---
 
@@ -155,7 +155,7 @@ impl Pose {
 
 **op**
 - `key_deform { animation, slot, attachment, skin?, time, offsets, curve }`
-- `rename_attachment { slot, from, to, skin? }`: 해당 어태치먼트의 이름, 슬롯 셋업 `attachment`, 모든 애니메이션의 어태치먼트 키, 디폼 키 경로를 갱신. `skin` 없으면 기본 스킨의 어태치먼트. 플레이스홀더 이름을 바꾸려면 모든 스킨에서 같이 바꾸는 `rename_placeholder { slot, from, to }`를 별도로 둔다(Spine은 플레이스홀더와 어태치먼트 이름이 분리돼 혼란스러움 — 우리는 "이 스킨의 것만 / 모든 스킨" 두 op로 명확히).
+- `rename_attachment { slot, from, to, skin? }`: 해당 어태치먼트의 이름, 슬롯 셋업 `attachment`, 모든 애니메이션의 어태치먼트 키, 디폼 키 경로를 갱신. `skin` 없으면 기본 스킨의 어태치먼트. 플레이스홀더 이름을 바꾸려면 모든 스킨에서 같이 바꾸는 `rename_placeholder { slot, from, to }`를 별도로 둔다(플레이스홀더와 어태치먼트 이름이 분리되면 혼란스러우므로 "이 스킨의 것만 / 모든 스킨" 두 op로 명확히).
 
 **에디터**: 어태치먼트 행 F2 → 이름 변경 대화상자(기존 `dialogs.rs` 폼 재사용)에 "모든 스킨의 같은 플레이스홀더도 변경" 체크.
 
@@ -166,7 +166,7 @@ impl Pose {
 ### M1. 메쉬 op 승격 + 헐/엣지
 
 **모델** (`Mesh`)
-- `hull: u32` — 앞쪽 `hull`개 정점이 외곽(시계 방향 순서). Spine과 같은 규약. 기본 0 = "미지정, 삼각형에서 추론"(기존 파일 호환). 로드 시 정점을 재배열하지 않는다(디폼 키 인덱스가 깨지므로). 새로 만들거나 재삼각화하는 op만 정점을 헐 순서로 배치하고 `hull`을 채운다.
+- `hull: u32` — 앞쪽 `hull`개 정점이 외곽(시계 방향 순서). 일반적인 규약. 기본 0 = "미지정, 삼각형에서 추론"(기존 파일 호환). 로드 시 정점을 재배열하지 않는다(디폼 키 인덱스가 깨지므로). 새로 만들거나 재삼각화하는 op만 정점을 헐 순서로 배치하고 `hull`을 채운다.
 - `edges: Vec<[u32; 2]>` — 사용자 제약 엣지(내부 선). 삼각화에서 flip 금지.
 - `width/height`는 저장하지 않는다(이미지 크기에서 얻음).
 
@@ -187,10 +187,10 @@ impl Pose {
 - **모든 정점 수를 바꾸는 op는 디폼 키를 재매핑한다**(삭제된 정점 키 제거, 추가된 정점 오프셋은 이웃 보간). 현재 `fit_deform_keys`는 길이만 맞춘다 — 인덱스 재매핑 테이블을 받도록 확장.
 
 **에디터**
-- 메쉬 툴 창(`mesh_tool_window`) 상단에 모드 세그먼트 **수정 / 생성 / 삭제 / 엣지**(Spine 사용자 익숙). 우클릭으로 순환. 현 수정키 동작은 유지.
+- 메쉬 툴 창(`mesh_tool_window`) 상단에 모드 세그먼트 **수정 / 생성 / 삭제 / 엣지**. 우클릭으로 순환. 현 수정키 동작은 유지.
 - 엣지 모드: 정점→정점 드래그 = 엣지 추가, 엣지 클릭 + Del = 제거. 헐은 굵은 선, 제약 엣지는 주황 선, 일반 삼각형 엣지는 흐린 선.
 - "UV로 리셋" / "정점에 UV 맞춤" 버튼 + 팔레트 명령.
-- **Spine과 다름**: 정점 추가·삭제·생성·재생성이 가중치와 디폼 키를 보존(Spine은 Reset 시 가중치를 지움).
+- 정점 추가·삭제·생성·재생성이 가중치와 디폼 키를 보존(리셋하더라도 가중치를 지우지 않는다).
 
 **테스트**: 재삼각화가 제약 엣지를 유지, 헐 밖 삼각형 없음, 삭제 후 디폼 키 길이·값 재매핑, 에디터 이전 결과와 동일한 기하(회귀).
 
@@ -209,7 +209,7 @@ impl Pose {
 
 **CLI/MCP**: 별도 도구를 늘리지 않는다. `apply`/`skel2d_apply_ops`가 AnyOp를 받는다. 결과 응답에 펼쳐진 요약(정점 수, 삼각형 수, 가중치 본 목록)을 포함해 AI가 다음 단계를 판단하게 한다.
 
-**에디터**: P0-2의 메쉬 생성 대화상자에 알파 임계값·패딩·디테일·내부 정점 방식·"가중치 유지"를 연결하고, **대화상자 열린 동안 뷰포트에 결과 미리보기**(op를 `app.preview`로 적용). **Spine과 다름**: Spine Trace는 수치를 바꿀 때마다 결과를 다시 눌러 봐야 함.
+**에디터**: P0-2의 메쉬 생성 대화상자에 알파 임계값·패딩·디테일·내부 정점 방식·"가중치 유지"를 연결하고, **대화상자 열린 동안 뷰포트에 결과 미리보기**(op를 `app.preview`로 적용). 수치를 바꿀 때마다 결과를 다시 눌러 봐야 하는 별도 트레이스 버튼은 두지 않는다.
 
 **테스트**: 테스트 이미지(`examples/arm`)로 트레이스 결과의 헐이 알파 경계 안쪽 `padding` 이내, 결정적(같은 입력 → 같은 메쉬), CLI와 에디터 결과 바이트 동일.
 
@@ -224,7 +224,7 @@ impl Pose {
 | `prune_weights { slot, attachment, skin?, vertices?, max_bones=4, threshold=0.01, locked_bones? }` | 응답에 제거 개수 |
 | `swap_weights { slot, attachment, skin?, vertices?, a, b }` | |
 | `set_bone_weight { slot, attachment, skin?, vertices, bone, value, mode: "set"\|"add"\|"scale", locked_bones? }` | 수치 입력·AI용 (브러시의 이산 버전) |
-| `bind_bones { slot, attachment, skin?, add?: [bone], remove?: [bone], redistribute: "auto"\|"nearest"\|"parent" }` | Spine "Bones" 목록. 제거 시 그 본의 가중치를 재분배 |
+| `bind_bones { slot, attachment, skin?, add?: [bone], remove?: [bone], redistribute: "auto"\|"nearest"\|"parent" }` | "Bones" 목록. 제거 시 그 본의 가중치를 재분배 |
 | `normalize_weights { slot, attachment, skin? }` | |
 
 - `locked_bones`는 op 인자로만 존재(문서에 저장하지 않음). 에디터의 잠금 상태는 세션 설정이고 op 생성 시 전달.
@@ -244,8 +244,8 @@ impl Pose {
 ```
 - 본 행의 막대 = 선택 정점(없으면 전체)의 평균 영향도. 행 클릭 = 브러시 대상 본, 뷰포트에서 해당 본 히트맵.
 - 프루닝·미러·전송은 P0-2 대화상자(옵션 + 영향 미리보기 "정점 12개에서 본 9개 영향 제거").
-- **포즈 테스트 토글**: 가중치 툴에서 셋업을 벗어나 본을 임시 회전해 변형을 보며 칠하기(Spine의 "Weights 모드에서 본 회전" 대응, 놓으면 셋업 복귀, 문서 불변).
-- **Spine과 다름**: 가중치 툴에서 본 잠금이 브러시·스무스·프루닝·자동 가중치 모두에 일관 적용. 자동 가중치는 선택 정점에만 적용 가능.
+- **포즈 테스트 토글**: 가중치 툴에서 셋업을 벗어나 본을 임시 회전해 변형을 보며 칠하기(놓으면 셋업 복귀, 문서 불변).
+- 가중치 툴에서 본 잠금이 브러시·스무스·프루닝·자동 가중치 모두에 일관 적용. 자동 가중치는 선택 정점에만 적용 가능.
 
 **테스트**: 각 op 수치 기대값, 잠금 본 값 불변, 정규화 합 1, `bind_bones` 제거 후 그 본 가중치 0.
 
@@ -255,7 +255,7 @@ impl Pose {
 
 **링크드 메쉬**
 - 모델: `Attachment::LinkedMesh { name, image: Option<String>, parent: String /*같은 슬롯의 메쉬 어태치먼트 이름*/, parent_skin: Option<String>, timelines: bool /*부모 디폼 키 공유, 기본 true*/ }`.
-- 평가: 해석 시 부모 메쉬의 정점·삼각형·가중치·헐을 쓰고 이미지만 교체. `timelines=true`면 디폼 키를 부모(어태치먼트·스킨 경로)에서 읽는다(Spine `timelines`와 동일).
+- 평가: 해석 시 부모 메쉬의 정점·삼각형·가중치·헐을 쓰고 이미지만 교체. `timelines=true`면 디폼 키를 부모(어태치먼트·스킨 경로)에서 읽는다(`timelines` 플래그).
 - 검증: 부모가 존재하는 메쉬여야 함, 링크드 → 링크드 체인 금지, 순환 금지.
 - op: `add_linked_mesh { slot, name, parent, parent_skin?, skin?, image, timelines }`. 부모 삭제 시 링크드 메쉬를 독립 메쉬로 굳힐지 함께 삭제할지 op 인자(`on_parent_removed`)로 받고, 기본은 오류(조용한 파괴 금지).
 - 에디터: 메쉬 인스펙터에 "링크드 메쉬 만들기"(대상 스킨 선택 대화상자), 링크드 메쉬 인스펙터는 부모로 이동 버튼 + 기하 편집 툴 비활성 + 안내 문구.
@@ -263,7 +263,7 @@ impl Pose {
 **제약 일반화**: D3. 스킨 인스펙터 "스킨 제약" 그룹이 모든 종류 제약을 아이콘과 함께 나열.
 
 **스킨 UX 개선**
-- 스킨 인스펙터 어태치먼트 목록을 "슬롯 ▸ 플레이스홀더 ▸ 어태치먼트" 트리(`tree_row`)로. 비어 있는 플레이스홀더(다른 스킨엔 있는데 이 스킨엔 없는 것)를 흐리게 표시 — **Spine과 다름**: 스킨 간 누락을 한눈에.
+- 스킨 인스펙터 어태치먼트 목록을 "슬롯 ▸ 플레이스홀더 ▸ 어태치먼트" 트리(`tree_row`)로. 비어 있는 플레이스홀더(다른 스킨엔 있는데 이 스킨엔 없는 것)를 흐리게 표시 — 스킨 간 누락을 한눈에.
 - "스킨 비교" 팔레트 명령: 두 스킨의 플레이스홀더 차이를 상태바/대화상자로.
 - `skel2d_pose`/`info` 응답에 활성 스킨별 해석 결과(슬롯 → 실제 어태치먼트, 출처 스킨) 포함 → AI가 스킨 결과를 수치로 검증.
 
@@ -273,24 +273,24 @@ impl Pose {
 
 ### M5. 물리 제약
 
-#### 모델 (Spine 4.2 `PhysicsConstraintData` 대응)
+#### 모델 (`PhysicsConstraintData`)
 ```
 Document.physics: Vec<PhysicsConstraint>
 PhysicsConstraint {
   name, order: i32, bone: String,
-  x, y, rotate, scale_x, shear_x: f32,   // 속성별 영향도 0..1 (0 = 그 속성 시뮬레이션 안 함). 기본값은 Spine 4.2와 동일하게(착수 시 런타임 소스로 확인)
+  x, y, rotate, scale_x, shear_x: f32,   // 속성별 영향도 0..1 (0 = 그 속성 시뮬레이션 안 함). 기본값은 4.2 형식 기본값과 동일하게(착수 시 런타임 소스로 확인)
   limit: 5000, step: 1/60,
   inertia: 1, strength: 100, damping: 1, mass_inverse: 1, wind: 0, gravity: 0, mix: 1,
   inertia_global, strength_global, damping_global, mass_global, wind_global, gravity_global, mix_global: bool,
 }
 Document.physics_globals: PhysicsGlobals { wind, gravity, ... }   // "global" 플래그가 참조
 Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
-  inertia, strength, damping, mass, wind, gravity, mix: Vec<Key<f32>>,   // Spine처럼 속성별 타임라인
+  inertia, strength, damping, mass, wind, gravity, mix: Vec<Key<f32>>,   // 속성별 타임라인
   reset: Vec<f32>,                                                       // 리셋 시각
 }>
 ```
-- 기본값은 Spine 4.2 JSON 형식의 기본값과 동일하게 맞춘다(내보내기 1:1 매핑).
-- 키가 제약 이름 `""`인 타임라인 = 모든 물리 제약 대상(Spine의 global 타임라인).
+- 기본값은 4.2 JSON 형식의 기본값과 동일하게 맞춘다(내보내기 1:1 매핑).
+- 키가 제약 이름 `""`인 타임라인 = 모든 물리 제약 대상(global 타임라인).
 
 #### 평가
 - `ConstraintRef::Physics(i)`를 P0-1 스케줄에 추가. 스킨 소유 제약은 D3 규칙.
@@ -312,11 +312,11 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 - 프레임 연속 렌더(`render --frames`)는 한 번의 시뮬레이션으로 이어서 계산(프레임마다 0초부터 재시뮬레이션 금지, 결과는 같아야 함 — 테스트).
 
 #### 에디터
-- 재생 중: `advance_playback`에서 `PhysicsState` 유지 + `Update`. 루프 경계에서 상태 유지(Spine과 동일).
-- 스크럽/정지/키 편집: **시뮬레이션 캐시** `physics_cache { key: (문서 버전, 트랙, 스킨, fps), frames: Vec<PhysicsState> }` — 0초부터 프레임별 상태를 저장, 플레이헤드 이동 시 가장 가까운 이전 상태부터 이어 계산. 문서 변경 시 무효화. **Spine과 다름**: Spine은 스크럽 시 물리가 튀거나 리셋됨.
+- 재생 중: `advance_playback`에서 `PhysicsState` 유지 + `Update`. 루프 경계에서 상태 유지.
+- 스크럽/정지/키 편집: **시뮬레이션 캐시** `physics_cache { key: (문서 버전, 트랙, 스킨, fps), frames: Vec<PhysicsState> }` — 0초부터 프레임별 상태를 저장, 플레이헤드 이동 시 가장 가까운 이전 상태부터 이어 계산. 문서 변경 시 무효화. 스크럽 시 물리가 튀거나 리셋되지 않도록 한다.
 - 셋업 모드: "물리 미리보기" 토글(기본 꺼짐). 켜면 본 드래그·루트 이동에 실시간 반응(리깅 중 흔들림 확인). 문서는 변경하지 않음.
 - 상단 모드 스위치 옆 물리 컨트롤: 일시정지, 리셋(Shift+R), 끄기 토글.
-- 아웃라이너 제약 탭에 물리 아이콘(`physics.png` → `icons.rs` 연결), 새 제약 대화상자(P0-2)에 물리 종류 추가(선택 본으로 미리 채움, 체인 선택 시 "본마다 하나씩 만들기" 체크 — **Spine과 다름**: 머리카락 체인에 일괄 생성).
+- 아웃라이너 제약 탭에 물리 아이콘(`physics.png` → `icons.rs` 연결), 새 제약 대화상자(P0-2)에 물리 종류 추가(선택 본으로 미리 채움, 체인 선택 시 "본마다 하나씩 만들기" 체크 — 머리카락 체인에 일괄 생성).
 - 인스펙터:
 ```
 [물리 카드: hair_1_physics · 본 hair_1]
@@ -329,7 +329,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 바람 [0] 🌐   중력 [0] 🌐
 ── 고급 (접힘) ─────────
 스텝 [60 Hz]  속도 제한 [5000]  믹스 [1.00] 🌐
-[흔들어 보기]   (선택 본에 임펄스, Spine에 없음)
+[흔들어 보기]   (선택 본에 임펄스)
 ```
   - 🌐 = 전역 값 사용 토글. 애니메이트 모드에서는 각 값 앞에 `key_button`, 도프시트에 물리 행(키 없어도 표시) + 리셋 마커 행.
 - 뷰포트: 물리 본에 작은 물결 표시, 선택 시 영향 축 화살표, 시뮬레이션 중 셋업 대비 오프셋을 흐린 고스트로.
@@ -339,7 +339,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 - 강도 0·감쇠 1 정지 유지, 중력 > 0이면 아래로 처짐(부호), `limit` 속도 제한, `reset` 키 직후 셋업 복귀.
 - 스크럽 캐시가 앞/뒤 이동 모두 `simulate`와 일치.
 - 스킨 소유 물리 제약이 스킨 비활성 시 미적용.
-- Spine 호환이 필요한 값은 Spine 에디터에서 관찰한 동작을 기준으로 삼는다(소스 이식 금지).
+- 외부 형식과 호환이 필요한 값은 형식 문서와 관찰한 동작을 기준으로 삼는다(타사 런타임 소스 이식 금지).
 
 ---
 
@@ -395,7 +395,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 | P5 | 블렌드 모드 + 다크 틴트, wgpu 슬롯 파이프라인 | 사용자 결정: wgpu로 전환 |
 | P6 | 커브 일반화, 키 전체, X/Y 분리, 도프시트 행, 그래프 에디터, 드로우 오더 타임라인, 이벤트 | 애니메이션 복제는 완료 |
 | P7 | 포인트/바운딩 박스/클리핑/패스 어태치먼트 + 패스 제약 | 링크드 메쉬는 M4로 앞당김 |
-| P9 | Spine JSON 4.2, 아틀라스, PNG 시퀀스/GIF/비디오 | Skel2D 전용 개념 처리 방식은 착수 전 사용자 확인 |
+| P9 | 외부 JSON 4.2 형식, 아틀라스, PNG 시퀀스/GIF/비디오 | Skel2D 전용 개념 처리 방식은 착수 전 사용자 확인 |
 
 ---
 
@@ -404,9 +404,9 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 ### 6.1 사용자 결정 (유지)
 1. 뷰포트는 wgpu 커스텀 파이프라인으로 전환한다(P5, 이번 범위 밖).
 2. 애니메이션의 스킨 전환 키는 도입하지 않는다.
-3. Spine JSON 내보내기의 Skel2D 전용 개념 처리는 보류, P9 착수 전 확인.
+3. 외부 JSON 내보내기의 Skel2D 전용 개념 처리는 보류, P9 착수 전 확인.
 4. 커밋·브랜치 전략은 보류. 지시 전까지 커밋 금지.
-5. `spine-runtimes` 코드를 이식하지 않는다. Spine과 같은 프로그램이 목표이므로 형식과 동작을 맞추되 구현은 직접 한다. 소스를 옮겨 쓰면 Spine 런타임 라이선스 조건을 받는다(사용자마다 Spine Editor 라이선스 필요). 이 저장소에 있던 소스 기반 구현은 재구현한다.
+5. 타사 런타임 코드를 이식하지 않는다. 형식과 동작을 맞추되 구현은 직접 한다. 소스를 옮겨 쓰면 해당 런타임의 라이선스 조건을 받는다(사용자마다 상용 에디터 라이선스 필요). 이 저장소에 있던 소스 기반 구현은 재구현한다.
 
 ### 6.2 이번 문서에서 정한 것 (착수 전 이의 있으면 사용자 확인)
 - 이번 범위 = 메쉬·가중치·스킨·물리. IK 확장 등은 백로그.
@@ -414,7 +414,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 - 디폼 키를 스킨별로 마이그레이션(D2), 스킨 제약 일반화(D3), `default` 스킨 이름 예약.
 - 물리 CLI 렌더 기본값은 시뮬레이션 켬(`--physics none`으로 끔).
 
-### 6.3 Spine과 의도적으로 다른 점 (유지할 것)
+### 6.3 의도적인 설계 차이 (유지할 것)
 - 어태치먼트 이름 변경을 현재 스킨만(`rename_attachment`) / 모든 스킨의 같은 플레이스홀더(`rename_placeholder`)로 명시적으로 구분한다.
 - 다중 스킨 동시 미리보기, 미리보기 중 편집이 스킨으로 자동 전환, 스킨 간 누락 플레이스홀더 표시.
 - 키 `reset` = 아래 트랙 값.
@@ -495,7 +495,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 - [x] 모델·serde 기본값·기존 파일 호환: 문서 형식은 바꾸지 않아 새 마이그레이션은 필요하지 않다. AssetOp 기본값·왕복 직렬화·알 수 없는 필드 거부·태그 비충돌을 테스트했다. 기존 마이그레이션 테스트와 예제 문서 5개의 로드·검증도 통과했다.
 - [x] `validate.rs`·잘못된 입력: 최종 문서는 기존 코어 검증을 통과해야 한다. 에셋 계층의 비유한 값·범위·본/정점 선택·투명/누락 이미지·배치 오류를 검사하며, 실패한 혼합 배치와 잘못된 미리보기가 원본을 바꾸지 않는지 확인했다.
 - [x] op·참조 정리: 정확한 스킨의 이름 변경과 디폼 경로 이동, 다른 스킨의 독립성, 이름 변경 뒤 삭제 참조 정리를 테스트했다. 제약 엣지·가중치·디폼 곡선 보존, 선택 정점 이미지 가중치, 이미지 없는 코어 op 재생도 통과했다.
-- [x] 포즈·렌더·수치: arm 이미지의 임계값 0.05/0.5 및 패딩 0/2 경계 좌표, 세 내부 정점 방식의 결정성, 구멍 내부 삼각형 제외, 선형 디폼 보간을 수치로 확인했다. 기존 다리의 반대쪽 본 혼입 회귀와 빈 공간을 도는 지오데식 테스트도 통과했다. 트레이스/디폼 렌더와 최종 에디터 셋업/애니메이트 스크린샷을 열어 확인했다. 자체 트레이스 알고리즘이므로 Spine의 동일 토폴로지 수치를 기준으로 삼지는 않았다.
+- [x] 포즈·렌더·수치: arm 이미지의 임계값 0.05/0.5 및 패딩 0/2 경계 좌표, 세 내부 정점 방식의 결정성, 구멍 내부 삼각형 제외, 선형 디폼 보간을 수치로 확인했다. 기존 다리의 반대쪽 본 혼입 회귀와 빈 공간을 도는 지오데식 테스트도 통과했다. 트레이스/디폼 렌더와 최종 에디터 셋업/애니메이트 스크린샷을 열어 확인했다. 자체 트레이스 알고리즘이므로 외부 도구의 동일 토폴로지 수치를 기준으로 삼지는 않았다.
 - [x] CLI/HTTP/MCP·가이드: 실제 세 경로에 같은 5개 혼합 op를 적용한 파일이 바이트 단위로 일치했다. 8개 코어 op로 펼쳐졌고 기본 메쉬 49정점/92삼각형과 armor 메쉬 37정점/52삼각형의 요약·본 목록도 일치했다. dry-run 불변, 실패 롤백, 이미지 파일을 옮긴 뒤 HTTP/MCP Undo, 통합 스키마, arm 예제 배치도 확인했다.
 - [x] 에디터 UI·한국어: 실제 Windows 한국어 대화상자의 auto 미리보기 37정점, none 미리보기 4정점, 취소 후 원본 27정점 복원을 확인했다. 적용 4정점, Undo 27정점, Redo 4정점도 확인했다. egui 대화상자 테스트는 Enter/Escape, 오류 시 복원, 애니메이트 모드 거부, 이미지 경로 변경 뒤 캐시 적용을 검사한다. 기존 아웃라이너·도프시트의 스킨별 디폼 경로와 키 곡선은 유지하며, 한국어 번역 일치 테스트도 통과했다.
 - [x] 에디터 전용 새 로직 없음: 이미지 연산은 rig에 있고 에디터 import 함수는 AssetOp를 생성한다. 실제 UI에서 저장한 none 트레이스와 같은 AssetOp의 CLI 결과가 바이트 단위로 일치했다. 대화상자 op의 JSON 왕복 및 공통 경로 결과 비교 테스트도 통과했다.
@@ -572,14 +572,14 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 
 ### 2026-10-31 — M5 구현: 물리 제약
 
-- 모델: `Document.physics`, `physics_globals`, `Animation.physics`. 필드 이름과 기본값은 Spine 4.2 형식을 따른다. 제약 이름은 종류와 무관하게 유일하고 IK와 같은 `order` 스케줄을 쓴다. 스킨 소유·이름 변경·삭제 참조를 정리한다.
+- 모델: `Document.physics`, `physics_globals`, `Animation.physics`. 필드 이름과 기본값은 4.2 형식을 따른다. 제약 이름은 종류와 무관하게 유일하고 IK와 같은 `order` 스케줄을 쓴다. 스킨 소유·이름 변경·삭제 참조를 정리한다.
 - 평가: `PhysicsMode`, `PhysicsState`, `Pose::compute_physics`, `Pose::simulate`, 이어서 계산하는 `PhysicsRun`, 스켈레톤 이동 `translate`/`rotate`/`MovePath`. 프레임은 정수로 세어 결정적이다.
 - op: `add_physics`, `set_physics`, `remove_physics`, `key_physics`, `key_physics_reset`, `set_physics_globals`, 그리고 문서에 없던 `remove_physics_key`(도프시트 키 삭제 동등성에 필요).
 - CLI/HTTP/MCP: `pose`·`render`에 `physics`, `fps`, `move`. 애니메이션이 있으면 기본 시뮬레이션이고 셋업 포즈는 시뮬레이션하지 않는다. `pose` 응답에 제약별 오프셋·속도를 포함한다.
 - 에디터: 재생 중 라이브 상태 유지, 스크럽 캐시(`physicsview.rs`), 일시정지·리셋(Shift+R)·끄기, 셋업 물리 미리보기, 아웃라이너·새 제약 대화상자(체인 일괄 생성)·인스펙터(프리셋, 전역 토글, 흔들어 보기)·도프시트 행·뷰포트 표시·팔레트·F1·한국어. `AI_GUIDE.md`와 매뉴얼을 갱신했다.
 
 **계획과 다른 결정 (사용자 확인 필요)**
-- 적분기는 자체 구현(고정 스텝 반암시적 오일러)이다(§6.1-5). 형식과 기본값은 같지만 **수치 결과는 Spine과 같지 않다.**
+- 적분기는 자체 구현(고정 스텝 반암시적 오일러)이다(§6.1-5). 형식과 기본값은 같지만 **수치 결과는 외부 런타임과 같지 않다.**
 - 이름 `""` 타임라인: 리셋은 모든 제약, 속성 키는 해당 `*_global` 플래그를 켠 제약에만 적용한다. 문서의 "모든 제약 대상"보다 좁다.
 - `mass` 키는 `mass_inverse` 값을 저장한다.
 - `--move`는 물리 반응만 만들고 렌더 위치는 옮기지 않는다.
@@ -589,7 +589,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 - [x] 모델·serde 기본값: 기본값 생략·왕복, 예제 문서 5개 검증. 마이그레이션 불필요.
 - [x] `validate.rs`·잘못된 입력: 18종 잘못된 op의 배치 원자성, 잘못된 타임라인 파일 거부.
 - [x] op·참조 정리: 이름 변경, 본 이름 변경·삭제, 스킨, 키 삭제, 제약 순서.
-- [x] 포즈·수치: 결정성, 이어 계산 = 개별 시뮬레이션, 지연과 자식 추종, 정지 유지, 중력·바람 평형값, 속도 제한, 극단값 유한, 리셋(루프 경계 포함), 모드별 동작, 스킨 게이트, 전역. Spine 기대값은 위 사유로 제외.
+- [x] 포즈·수치: 결정성, 이어 계산 = 개별 시뮬레이션, 지연과 자식 추종, 정지 유지, 중력·바람 평형값, 속도 제한, 극단값 유한, 리셋(루프 경계 포함), 모드별 동작, 스킨 게이트, 전역. 외부 런타임 기대값은 위 사유로 제외.
 - [x] CLI/HTTP/MCP·가이드: 같은 6개 op 결과 바이트 일치, 실패 롤백, Undo, 세 경로 `pose` 응답 일치(`physics`, `move` 포함).
 - [ ] 에디터 UI·한국어: 연결과 번역 테이블 테스트, 셋업/애니메이트/도프시트 스크린샷만 확인. **실제 마우스·키 조작, 시간에 따른 움직임, 한국어 화면, 인스펙터 하단(전역 값·흔들어 보기·리셋 키) 실제 표시는 미검증.** 상단 컨트롤은 아이콘이 아닌 텍스트 버튼이다.
 - [x] 에디터 전용 로직 없음: 폼 op의 JSON 왕복과 `apply_any` 결과 비교 테스트. 미리보기는 문서를 바꾸지 않는다.
@@ -597,7 +597,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 
 백업: `C:\Users\dnwls\AppData\Local\Temp\Skel2D-M5-20261031-104410` (변경 전 `crates/`·`docs/`·`examples/`). 재현 스크립트 `qa.mjs`, 결과 `qa/`. 커밋·브랜치를 만들지 않았고 M6은 시작하지 않았다.
 
-### 2026-10-31 — Spine 소스 기반 구현 재구현
+### 2026-10-31 — 외부 소스 기반 구현 재구현
 
 - `LocalTransform::world`의 상속 모드를 `Bone.java`를 보지 않고 동작 정의에서 다시 유도했다. `NoRotationOrReflection`은 부모를 회전과 상삼각 행렬로 나눠 대각 스트레치만 쓰고, `NoScale` 계열은 부모가 돌린 방향의 각도와 반사 부호로 만든다. 기존 기대값 테스트를 고치지 않고 통과했다.
 - 차이: 부모 x축이 거의 붕괴한 경우(길이 0.001 이하 또는 방향 벡터 0)의 극단값은 이전과 다를 수 있다. 유한값 테스트로만 확인한다.
@@ -607,7 +607,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 
 ### 2026-10-31 — UI/UX 재개발과 root 상시 존재
 
-- 사용자 결정: Spine 느낌을 버리고 접근성·사용성·시인성·가독성 위주로 다시 만든다. 게임은 자체 런타임으로 재생하므로 Spine JSON 내보내기는 목표에서 뺀다(P9 수정, §6.1-3 대체). 설계: `docs/design/UI_REDESIGN.md`.
+- 사용자 결정: 기존 도구의 인상을 버리고 접근성·사용성·시인성·가독성 위주로 다시 만든다. 게임은 자체 런타임으로 재생하므로 외부 JSON 내보내기는 목표에서 뺀다(P9 수정, §6.1-3 대체). 설계: `docs/design/UI_REDESIGN.md`.
 - root: `Document::with_root`, `ops::ensure_root`. 새 문서와 `load`에서 보장하고, 부모 없는 새 본은 root 아래로 들어간다. root는 삭제·이름 변경·부모 지정 불가. `add_bone` root는 기존 root 값을 덮어써 기존 스크립트를 유지한다. `from_str`은 원문 그대로 읽으므로 root 없는 문서도 코어에서 유효하다.
 - 에디터: 뼈대·이미지·메쉬·가중치·애니메이션 5단계. 슬롯 이미지 카드와 이미지 추가, 메쉬·가중치 상태 문구, 비활성 이유 표시, 시작 화면, UI 크기 설정, 한국어·영어 혼용 제거. 눈 깜빡임·립싱크 생성기는 에디터에서 제거했고 op는 AI용으로 유지한다. 애니메이션 단계에서 이미지 카드를 눌러 키를 찍는다.
 - 검증: 테스트 216개 통과, Clippy 통과, 각 단계 스크린샷 확인. 실제 마우스 조작은 미검증이다. 카드 클릭만 egui 합성 입력으로 확인했다. `docs/manual/*.png` 8장은 옛 화면이다.
@@ -636,7 +636,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 - 채널 곡선: `Key.curves`, `key_bone`·`key_slot`의 `curves`. 에디터 곡선 편집기에 X/Y 선택을 추가했고 복사·이동에서 유지한다. 한 곡선을 지정하면 채널 곡선은 지워진다. 색상 채널은 op로만 지정한다.
 - 복잡한 리그 표시: 이미지·메쉬 단계는 선택·호버가 아닌 본을 얇게, 가중치 단계는 해당 메쉬의 본만 또렷하게 그린다. 본이 30개를 넘으면 뼈대·애니메이션 단계도 얇게 그리고 물리 표시는 선택한 것만 보인다.
 - 샘플 재변환: transform 3개를 제약으로 옮겼고(`girl/face-control`은 물리와 이름이 겹쳐 `-transform` 접미사), multiply 8개, 최대 5.12유닛 바인드를 보존한다. X/Y 곡선 구간 6곳 중 2곳만 채널 곡선이 됐다. 나머지 4곳은 같은 값으로 돌아오는 구간이라 0..1 곡선으로 표현할 수 없어 1/60초 키로 남는다.
-- 검증: 테스트 238개 통과, Clippy 통과. 셋업에서 제약 3개의 이동량 0.0, `swing` 물리 중 최대 약 15유닛 추가 이동. 곱하기는 렌더와 에디터 뷰포트 모두 끈 화면과 비교해 밝아진 픽셀 0. `mix_y` 생략 시 `mix_x`를 쓰는 변환은 추정이다. 원본 Spine 재생과 직접 비교하지 않았다. 패널 조작과 실제 드래그는 미검증이다. 커밋하지 않았다.
+- 검증: 테스트 238개 통과, Clippy 통과. 셋업에서 제약 3개의 이동량 0.0, `swing` 물리 중 최대 약 15유닛 추가 이동. 곱하기는 렌더와 에디터 뷰포트 모두 끈 화면과 비교해 밝아진 픽셀 0. `mix_y` 생략 시 `mix_x`를 쓰는 변환은 추정이다. 원본 재생과 직접 비교하지 않았다. 패널 조작과 실제 드래그는 미검증이다. 커밋하지 않았다.
 
 ### 2026-10-31 — 에디터 표시 수정
 
@@ -658,28 +658,28 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 
 ### 2026-10-31 — 눈 깜빡임·립싱크 생성기 제거
 
-- 사용자 결정: Spine 편집기에 없고 꼭 필요하지 않으므로 전부 제거한다. `generate_blink`, `generate_lipsync`, `MouthShapes`, `lipsync.rs`, 에디터 창과 메뉴, 문서를 지웠다. 이 op를 쓰던 외부 스크립트는 이제 파싱 오류가 난다. `examples/face/face.ops.json`은 생성 결과를 `key_slot`으로 풀어 썼다.
+- 사용자 결정: 참조한 편집기들에 없고 꼭 필요하지 않으므로 전부 제거한다. `generate_blink`, `generate_lipsync`, `MouthShapes`, `lipsync.rs`, 에디터 창과 메뉴, 문서를 지웠다. 이 op를 쓰던 외부 스크립트는 이제 파싱 오류가 난다. `examples/face/face.ops.json`은 생성 결과를 `key_slot`으로 풀어 썼다.
 - 유지: 슬롯 이미지를 시간별로 바꾸는 `key_slot`, 아래 트랙으로 되돌리는 `reset`, 이미 저장된 애니메이션. 깜빡임과 입 모양은 5단계에서 이미지 카드를 눌러 만든다.
 
 ### 2026-10-31 — Spineboy 포팅
 
 - `examples/spineboy/`에 spineboy-pro를 변환했다(이미지 비상업 라이선스 `license.txt` 동봉). 변환기를 `examples/convert_spine.py` 하나로 합쳤고, Celestial Circus 재변환 결과는 이전 파일과 바이트 단위로 같다.
 - 새로 변환하는 것: IK, IK·Transform 믹스 키, 슬롯 색상 키, 셰어 키, 디폼 키, 본 스케일·상속, 슬롯 setup 색상.
-- 표현하지 못해 버린 것: 클리핑 어태치먼트, 바운딩 박스, 이벤트(`footstep`), IK 소프트니스 키(`walk`, `run`, `portal` 등의 다리). IK 굽힘 키는 모두 setup과 같은 값이라 손실이 없다. 렌더 7종은 눈으로 확인했고 원본 Spine 재생과 직접 비교하지 않았다. 커밋하지 않았다.
+- 표현하지 못해 버린 것: 클리핑 어태치먼트, 바운딩 박스, 이벤트(`footstep`), IK 소프트니스 키(`walk`, `run`, `portal` 등의 다리). IK 굽힘 키는 모두 setup과 같은 값이라 손실이 없다. 렌더 7종은 눈으로 확인했고 원본 재생과 직접 비교하지 않았다. 커밋하지 않았다.
 
 ### 2026-10-31 — 드로우 오더 키, 이벤트, IK 확장
 
 백업: `C:\Users\dnwls\AppData\Local\Temp\Skel2D-AnimKeys-20261031-173556`.
 
-- 드로우 오더: `Animation.draw_order`, `key_draw_order`, `remove_draw_order_key`, `Pose.draw_order`. Spine의 오프셋 대신 슬롯 이름 전체 목록을 저장한다. `order`를 생략하면 셋업 순서다. 슬롯 이름 변경·삭제를 따라가고, 키 이후 추가된 슬롯은 셋업상 아래 슬롯 바로 위에 놓인다. 여러 트랙이면 alpha 0.5 이상인 마지막 트랙의 키가 이긴다. 렌더와 에디터 표시·선택이 이 순서를 쓴다.
+- 드로우 오더: `Animation.draw_order`, `key_draw_order`, `remove_draw_order_key`, `Pose.draw_order`. 오프셋 대신 슬롯 이름 전체 목록을 저장한다. `order`를 생략하면 셋업 순서다. 슬롯 이름 변경·삭제를 따라가고, 키 이후 추가된 슬롯은 셋업상 아래 슬롯 바로 위에 놓인다. 여러 트랙이면 alpha 0.5 이상인 마지막 트랙의 키가 이긴다. 렌더와 에디터 표시·선택이 이 순서를 쓴다.
 - 이벤트: `Document.events`, `Animation.events`, `add_event`, `set_event`, `remove_event`, `key_event`, `remove_event_key`, `pose::fired_events`. 키에서 생략한 값은 정의의 기본값이다. `pose`는 `events`를 보고하고 `--since`(HTTP·MCP `since`)로 구간을 정한다. 렌더 이미지에는 그리지 않는다. 오디오·볼륨·밸런스는 범위 밖이라 변환기가 보고만 한다.
 - IK: `softness`, `compress`, `stretch`와 키 `IkKey`. 키의 생략 값은 셋업 값을 따른다. 혼합값만 있는 키는 숫자 그대로 저장해 기존 파일과 호환한다. `mix`, `softness`는 곡선 채널 0, 1로 보간하고 굽힘·압축·늘이기는 다음 키까지 유지한다. `key_ik`의 `mix`는 이제 선택 항목이고, 같은 시간의 키에 합쳐진다.
-- 소프트니스는 동작 정의에서 직접 유도했다. 도달 거리 ± softness 구간을 포물선으로 이어 양 끝에 꺾임이 없다. 단위는 월드 거리다. Spine과 수치를 직접 비교하지 않았다.
+- 소프트니스는 동작 정의에서 직접 유도했다. 도달 거리 ± softness 구간을 포물선으로 이어 양 끝에 꺾임이 없다. 단위는 월드 거리다. 외부 런타임과 수치를 직접 비교하지 않았다.
 - 압축은 한 본 체인에만 적용한다(두 본은 값이 있어도 효과 없음, 에디터에서 비활성). `uniform`은 요청 범위 밖이라 없고 변환기가 보고한다. 늘이기는 x 스케일만 바꾸므로 부모 스케일이 자식을 기울일 수 있으며, 자식 조준을 반복 보정해 끝점을 맞춘다.
 - 에디터: 도프시트 그리기 순서·이벤트 행, IK 인스펙터 값별 키 버튼, 5단계 그리기 순서·이벤트 그룹, 재생 중 이벤트 알림, 무릎 핸들과 `I`의 키 기록, 명령 검색, 한국어. 이벤트 기본값은 5단계에서도 "기본값" 제목 아래에서 정의를 직접 고친다. IK 채널별 곡선은 op 전용이고, 에디터에서 곡선을 고치면 한 곡선으로 합쳐진다.
 - 샘플: `py -3 examples/convert_spine.py C:\Users\dnwls\Downloads\spineboy-4.3 spineboy-pro examples\spineboy spineboy`. 이벤트 키 5개, IK 키 29개. 남은 미표현은 클리핑과 바운딩 박스 어태치먼트다. Celestial Circus 재변환은 바이트 단위로 같다. 변환기의 드로우 오더 변환은 샘플이 없어 별도 스크립트로만 확인했다.
 - 검증: 테스트 261개 통과, `cargo clippy --workspace --release -- -D warnings` 통과, 예제 7개 validate 통과, walk·run 렌더와 에디터 스크린샷 확인. walk 0.25초 앞 정강이 약 1.5유닛, run 0.3초 뒤 정강이 약 3.9유닛 이동했다. `--all-targets`를 붙인 Clippy는 에디터 테스트 코드에서 실패하며(`theme.rs`, `physics.rs`, `stepui.rs` 등) 이번에 고치지 않았다.
-- 미검증: 실제 마우스 조작 전부. 무릎 핸들, `I`, 패널 버튼·체크박스, 도프시트 키 드래그·박스 선택·삭제·붙여넣기, 이벤트 대화상자, 명령 검색, 재생 중 이벤트 알림, 키로 바뀐 순서에서의 뷰포트 선택. op 왕복 단위 테스트와 스크린샷으로만 확인했다. 원본 Spine 재생과 비교하지 않았다. 커밋하지 않았다.
+- 미검증: 실제 마우스 조작 전부. 무릎 핸들, `I`, 패널 버튼·체크박스, 도프시트 키 드래그·박스 선택·삭제·붙여넣기, 이벤트 대화상자, 명령 검색, 재생 중 이벤트 알림, 키로 바뀐 순서에서의 뷰포트 선택. op 왕복 단위 테스트와 스크린샷으로만 확인했다. 원본 재생과 비교하지 않았다. 커밋하지 않았다.
 
 ### 2026-10-31 — 본 색상, 뷰포트 표식, 열기 전 저장 확인, 프로그램 아이콘
 
@@ -693,7 +693,7 @@ Animation.physics: BTreeMap<String /*제약, "" = 전체*/, PhysicsTimelines {
 
 백업: `C:\Users\dnwls\AppData\Local\Temp\Skel2D-KeyFlow-20261031-203508`.
 
-- 참고: Spine 문서 keys, dopesheet, meshes(코드 미참조).
+- 참고: 외부 문서의 keys, dopesheet, meshes 항목(코드 미참조).
 - 키: K는 변경한 값만 기록하고, 변경이 없으면 현재 툴 속성, 슬롯 이미지, 선택한 IK 순으로 기록한다. Ctrl+Shift+L은 보이는 행 전체를 기록한다. 자동 키를 끄면 본·슬롯·디폼·IK·Transform·물리 값 편집이 모두 미키 상태로 보류된다. 재생 헤드를 옮기면 버리고 개수를 알린다. 드로우 오더와 이벤트는 바로 기록한다.
 - 도프시트: 요약 행, 본·슬롯의 속성별 행, 보간선, 행 클릭 선택, 더블클릭 삭제, Ctrl+A, Ctrl+Shift+드래그 복제, 선택 본만 표시와 "모든 행" 토글. 속성 종류 필터는 하지 않았다.
 - 트리: 1·5단계에 슬롯과 이미지 표시("슬롯" 토글), 키 버튼, 제약 배지, 인스펙터 경계 드래그. 토스트: `toasts.rs`. `status` 문구를 프레임마다 토스트로 옮기고 종류는 키워드로 판단한다.

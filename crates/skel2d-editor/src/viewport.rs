@@ -1061,7 +1061,7 @@ fn interact(app: &mut EditorApp, ui: &egui::Ui, response: &egui::Response, rect:
                         app.push_undo();
                     }
                 } else if let (Tool::Select, Some(Pick::Bone(b))) = (app.tool, pick(app, pose, rect, p)) {
-                    // Pose tool, as in Spine: dragging a bone moves it, near its tip rotates it.
+                    // Pose tool: dragging a bone moves it, near its tip rotates it.
                     select(app, Some(Pick::Bone(b.clone())));
                     let (origin, tip) = (bone_origin(app, pose, &b), bone_tip(app, pose, &b));
                     let near_tip = match (origin, tip) {
@@ -1920,7 +1920,7 @@ fn drag_values(d: &Drag, axis: Axis, snap: &Snap) -> Option<Vals> {
             v.translate = Some(t.map(round2));
         }
         Tool::Scale | Tool::Shear => {
-            // Spine과 다름: Alt+Scale drags shear a bone. X skews the X
+            // Alt+Scale drags shear a bone. X skews the X
             // axis; Y/free skews the Y axis. Attachments keep normal scaling.
             if d.shearing {
                 let delta = (n[1].atan2(n[0]) - s[1].atan2(s[0])).to_degrees();

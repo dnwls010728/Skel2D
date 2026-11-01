@@ -713,7 +713,7 @@ pub fn add_vertices(
 }
 
 /// Removes several vertices and retriangulates the remaining boundary.
-/// Spine과 다름: weights and all deformation indices survive through remap.
+/// Weights and all deformation indices survive through remap.
 pub fn remove_vertices(mesh: &Mesh, indices: &[usize]) -> Result<MeshEdit, String> {
     let remove: BTreeSet<_> = indices.iter().copied().collect();
     if remove.is_empty() || remove.iter().any(|&i| i >= mesh.vertices.len()) {
@@ -985,7 +985,7 @@ pub fn brush_weight(
     set_bone(v, bone, new, slot_bone, locked, fallback)
 }
 
-/// Direct numeric weight for `bone` (the Spine "Direct" slider).
+/// Direct numeric weight for `bone` (the "Direct" slider).
 pub fn set_weight(v: &MeshVertex, bone: &str, value: f32, slot_bone: &str, locked: &BTreeSet<String>, fallback: Option<&str>) -> Vec<Weight> {
     set_bone(v, bone, value, slot_bone, locked, fallback)
 }
@@ -1145,7 +1145,7 @@ pub fn paste_weights(mesh: &Mesh, indices: &[usize], weights: &BTreeMap<String, 
     out
 }
 
-/// Spine과 다름: every weight operation keeps locked influences, including
+/// Every weight operation keeps locked influences, including
 /// automatic weights. Only the remaining budget is redistributed and rounded.
 pub fn preserve_locked(v: &MeshVertex, candidate: &BTreeMap<String, f32>, slot_bone: &str, locked: &BTreeSet<String>) -> Vec<Weight> {
     if locked.is_empty() { return weight_list(candidate.clone(), slot_bone); }

@@ -249,29 +249,42 @@ impl LocalTransform {
         let linear = match self.inherit {
             Inherit::Normal => parent.mul(&self.to_affine()),
             Inherit::OnlyTranslation => self.to_affine(),
-            Inherit::NoRotationOrReflection => {
-                // The parent is a rotation of an upper triangular matrix. Its
-                // diagonal is the stretch along the parent's own axes, applied
-                // here in those directions while the rotation itself is dropped.
-                let along = parent.a.hypot(parent.b);
-                let (axis, stretch) = if along > 1e-3 {
-                    (parent.b.atan2(parent.a).to_degrees(), Affine::scale(along, parent.determinant().abs() / along))
-                } else {
-                    // A collapsed x axis leaves only the y axis to say where the parent points.
-                    (parent.d.atan2(parent.c).to_degrees() - 90.0, Affine::scale(0.0, parent.c.hypot(parent.d)))
-                };
-                spin(axis).mul(&stretch).mul(&spin(-axis)).mul(&self.to_affine())
-            }
+            Inherit::NoRotationOrReflection => parent_stretch(parent).mul(&self.to_affine()),
             Inherit::NoScale | Inherit::NoScaleOrReflection => {
-                let direction = spin(self.rotation).apply_vector(1.0, 0.0);
-                let [x, y] = parent.apply_vector(direction[0], direction[1]);
-                let mirrored = self.inherit == Inherit::NoScale && parent.determinant() < 0.0;
-                let own = Affine::from_trss(0.0, 0.0, 0.0, self.scale_x, self.scale_y, self.shear_x, self.shear_y);
-                spin(y.atan2(x).to_degrees()).mul(&Affine::scale(1.0, if mirrored { -1.0 } else { 1.0 })).mul(&own)
+                // The bone keeps its own shape and only its heading comes from
+                // the parent: where the parent sends the bone's local direction.
+                let (sin, cos) = self.rotation.to_radians().sin_cos();
+                let [dx, dy] = parent.apply_vector(cos, sin);
+                // A collapsed parent can erase that direction; the bone's own
+                // rotation is then the only heading left.
+                let heading = if dx.hypot(dy) > 1e-6 { dy.atan2(dx).to_degrees() } else { self.rotation };
+                let mirrored = matches!(self.inherit, Inherit::NoScale) && parent.determinant() < 0.0;
+                let shape = Self { rotation: 0.0, ..*self }.to_affine();
+                spin(heading).mul(&Affine::scale(1.0, if mirrored { -1.0 } else { 1.0 })).mul(&shape)
             }
         };
         Affine { tx, ty, ..linear }
     }
+}
+
+/// A parent's stretch alone, as a symmetric matrix. Its two scales are measured
+/// along its x axis and perpendicular to it (area over x length, which drops
+/// shear and mirroring); building them back about that same line removes the
+/// rotation. Written as uniform `across` plus the extra along the axis `u`.
+fn parent_stretch(parent: &Affine) -> Affine {
+    let (x_len, y_len) = (parent.scale_x(), parent.c.hypot(parent.d));
+    let (u, along, across) = if x_len > 1e-6 {
+        ([parent.a / x_len, parent.b / x_len], x_len, parent.determinant().abs() / x_len)
+    } else if y_len > 1e-6 {
+        // The x axis collapsed: all that remains is the y axis, along which it
+        // still stretches, and nothing across it.
+        ([parent.d / y_len, -parent.c / y_len], 0.0, y_len)
+    } else {
+        return Affine::scale(0.0, 0.0);
+    };
+    let extra = along - across;
+    let shared = extra * u[0] * u[1];
+    Affine { a: across + extra * u[0] * u[0], b: shared, c: shared, d: across + extra * u[1] * u[1], tx: 0.0, ty: 0.0 }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -359,7 +372,7 @@ impl Pose {
     }
 
     /// Layers several animations (e.g. face pose + walk + blink + talk) over
-    /// the setup pose, as Spine's track entries do. Tracks apply in order: a
+    /// the setup pose, one track entry per animation. Tracks apply in order: a
     /// track only affects the timelines it keys, replacing what earlier tracks
     /// set by `alpha` (attachments switch when alpha >= 0.5).
     pub fn compute_with(doc: &Document, tracks: &[Track]) -> Pose {
