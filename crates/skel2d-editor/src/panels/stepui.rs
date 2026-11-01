@@ -1440,8 +1440,10 @@ pub(crate) mod tests {
                 events: if i + 1 == n { events.clone() } else { Vec::new() },
                 ..Default::default()
             };
+            out.textures_delta.clear();
             out = ctx.run_ui(input, |ui| f(app, ui));
         }
+        out.textures_delta.clear();
         out
     }
 

@@ -317,7 +317,7 @@ mod dialog_row_tests {
         for &height in heights {
             for _ in 0..6 {
                 let input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, screen)), ..Default::default() };
-                let _ = ctx.run_pass(input, |ctx| {
+                let mut output = ctx.run_pass(input, |ctx| {
                     let shown = modal("row_test").show(ctx, |ui| {
                         ui.set_width(DIALOG_WIDTH);
                         ui.allocate_space(egui::vec2(100.0, height));
@@ -329,6 +329,7 @@ mod dialog_row_tests {
                     });
                     out = shown.response.rect.bottom() - shown.inner.bottom();
                 });
+                output.textures_delta.clear();
             }
         }
         out

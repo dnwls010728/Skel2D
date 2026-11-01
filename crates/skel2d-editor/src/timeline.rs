@@ -2324,10 +2324,11 @@ mod keying_tests {
             let events: Vec<egui::Event> = std::iter::once(egui::Event::ModifiersChanged(modifiers)).chain(events).collect();
             let input = egui::RawInput { events, screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(900.0, 600.0))), ..Default::default() };
             let app = &mut self.app;
-            let _ = self.ctx.run_ui(input, |ui| {
+            let mut output = self.ctx.run_ui(input, |ui| {
                 shortcuts(app, &ui.ctx().clone());
                 dope_sheet(app, ui, "a");
             });
+            output.textures_delta.clear();
         }
         fn row(&self, target: &Target) -> Rect {
             self.app.timeline.rows.iter().find(|(t, _)| t == target).map(|r| r.1).unwrap_or_else(|| panic!("no row {target:?}: {:?}", self.app.timeline.rows.iter().map(|r| &r.0).collect::<Vec<_>>()))
@@ -2570,10 +2571,11 @@ mod shear_tests {
         let mut combo = Rect::NOTHING;
         let mut frame = |ctx: &egui::Context, events: Vec<egui::Event>, combo: &mut Rect| {
             let input = egui::RawInput { events, screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(800.0, 600.0))), ..Default::default() };
-            let _ = ctx.run_ui(input, |ui| {
+            let mut output = ctx.run_ui(input, |ui| {
                 toolbar(&mut app, ui);
                 *combo = ui.min_rect();
             });
+            output.textures_delta.clear();
         };
         frame(&ctx, vec![], &mut combo);
         let at = pos2(combo.left() + 40.0, combo.top() + 10.0);

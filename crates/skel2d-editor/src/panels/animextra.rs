@@ -366,12 +366,13 @@ mod tests {
         app.timeline.event = Some("step".into());
         let before = app.doc.clone();
         for _ in 0..2 {
-            let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
                 egui::CentralPanel::default().show(ui, |ui| {
                     draw_order_group(&mut app, ui, true);
                     events_group(&mut app, ui, true);
                 });
             });
+            output.textures_delta.clear();
         }
         assert_eq!(app.doc, before);
     }

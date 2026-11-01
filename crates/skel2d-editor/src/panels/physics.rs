@@ -531,9 +531,10 @@ mod tests {
             app.playback.anim = anim;
             let before = app.doc.clone();
             let c = app.doc.physics_constraint("sway").unwrap().clone();
-            let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
                 egui::CentralPanel::default().show(ui, |ui| physics_properties(&mut app, ui, &c));
             });
+            output.textures_delta.clear();
             assert_eq!(app.doc, before);
         }
     }

@@ -2194,7 +2194,8 @@ mod step_tests {
     fn press(app: &mut EditorApp, key: Key) {
         let ctx = egui::Context::default();
         let input = egui::RawInput { events: vec![egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE }], ..Default::default() };
-        let _ = ctx.run_pass(input, |ctx| app.shortcuts(ctx));
+        let mut output = ctx.run_pass(input, |ctx| app.shortcuts(ctx));
+        output.textures_delta.clear();
     }
 
     fn app() -> EditorApp {
