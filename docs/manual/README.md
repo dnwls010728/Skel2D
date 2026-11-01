@@ -134,3 +134,16 @@ CLI/HTTP/MCP에서는 `pose`/`render`가 기본으로 시뮬레이션하며 `--p
 ## GIF 내보내기
 
 **파일 > GIF 내보내기... (Ctrl+E)**로 현재 애니메이션을 반복 재생되는 GIF로 저장합니다. 내보낼 대상(애니메이션 / 셋업 포즈 / 모든 애니메이션), 스킨(미리 보는 스킨 / 스킨마다 한 파일), 저장 위치를 고르고 시간(FPS 최대 50, 무한 반복, 예열 등), 크기, 색, 표시 그룹을 조절한 뒤 **내보내기**를 누릅니다. 마지막 프레임 포함은 반복 애니메이션이면 꺼 두세요. GIF 픽셀은 불투명 아니면 투명뿐이라 투명 배경에서는 가장자리가 배경색과 섞이므로, 배경색을 올려 둘 페이지 색에 가깝게 고르세요. **Ctrl+Shift+E**는 마지막 설정으로 바로 다시 내보냅니다. 함께 재생할 애니메이션과 미리 보는 스킨이 GIF에 그대로 들어가며, 내보내기는 백그라운드에서 진행됩니다. 오른쪽 위 진행 창에 파일 이름과 진행률이 나오며 취소할 수 있습니다. 완료·실패·취소 결과는 오른쪽 아래 알림에 나옵니다. 상태바에는 단축키 안내, 선택 정보, 확대 비율이 남습니다. 명령줄: `skel2d gif 파일 -o out.gif --anim walk --gif-fps 25 --fit 400x400`. 자세한 설명은 PDF 사용설명서(`Skel2D_사용설명서.pdf`) 8장에 있습니다.
+
+## PDF 사용설명서 만들기
+
+`Skel2D_사용설명서.pdf`는 `docs/manual/pdf/manual.html` (A4 인쇄용 HTML, CSS 포함, 그림은 `pdf/img`)에서 만듭니다.
+`scripts/make_dist.ps1`이 이 PDF를 배포본에 `Skel2D_Manual_ko.pdf`로 넣습니다.
+
+```powershell
+& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-pdf-header-footer --print-to-pdf="E:\Projects\Skel2D\docs\manual\Skel2D_사용설명서.pdf" "file:///E:/Projects/Skel2D/docs/manual/pdf/manual.html"
+```
+
+- 목차와 "이럴 때" 표의 쪽 번호는 HTML에 직접 적혀 있습니다. 내용을 고쳐 쪽이 바뀌면 PDF를 다시 만든 뒤 번호를 맞추세요. 목차 링크는 쪽 번호와 상관없이 동작합니다.
+- 화면 그림 `pdf/img/m_*.png`는 버전 0.2.0 에디터에서 `skel2d-editor FILE --lang ko --step N --wait 5 --screenshot OUT.png`로 찍은 것을 잘라 쓴 것입니다. UI가 바뀌면 다시 찍으세요.
+- 버전 0.2.0 기준입니다. 표지의 버전 글자는 `manual.html`의 `.cover`에 있습니다.
